@@ -12,17 +12,28 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
+find_package(launch REQUIRED)
+find_package(launch_ros REQUIRED)
 find_package(qt_gui REQUIRED)
 find_package(qt_gui_cpp REQUIRED)
-find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Add executable
 add_executable(slider_gui_node src/slider_gui_node.cpp)
-ament_target_dependencies(slider_gui_node rclcpp std_msgs sensor_msgs)
+target_include_directories(slider_gui_node PUBLIC
+  $<INSTALL_INTERFACE:include>
+)
 target_link_libraries(slider_gui_node Qt5::Widgets Qt5::Core)
+ament_target_dependencies(slider_gui_node
+  rclcpp
+  std_msgs
+  sensor_msgs
+  launch
+  launch_ros
+)
 
 # Install executable
 install(TARGETS

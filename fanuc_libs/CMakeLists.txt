@@ -121,3 +121,12 @@ install(FILES
     DESTINATION
     ${CMAKE_INSTALL_LIBDIR}/cmake/fanuc_libs
 )
+install(FILES fanuc_libsConfig.cmake.in
+        DESTINATION share/${PROJECT_NAME}
+)
+install(DIRECTORY dependencies/
+        DESTINATION share/${PROJECT_NAME}/dependencies
+)
+install(DIRECTORY gpio_config/test/data/
+        DESTINATION share/${PROJECT_NAME}/gpio_config/test/data
+)
