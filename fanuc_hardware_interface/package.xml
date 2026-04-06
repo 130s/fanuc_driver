@@ -25,7 +25,6 @@
   <depend>rclpy</depend>
   <depend>sensor_msgs</depend>
   <depend>trajectory_msgs</depend>
-  <exec_depend>${tmpaaa}</exec_depend>
   <exec_depend>controller_manager</exec_depend>
 
   <exec_depend>fanuc_crx_description</exec_depend>
