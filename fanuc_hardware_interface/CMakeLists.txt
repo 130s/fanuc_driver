@@ -20,19 +20,16 @@ elseif(NOT "$ENV{ROS_DISTRO}" STREQUAL "jazzy")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_ros REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(fanuc_libs REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 
 add_library(fanuc_robot_driver SHARED src/hardware_interface.cpp)
-
-target_link_libraries(fanuc_robot_driver PUBLIC
-  pluginlib::pluginlib
-  fanuc_libs::rmi
-  fanuc_libs::stream_motion
-  fanuc_libs::fanuc_client
-  fanuc_libs::gpio_config
-)
 
 if(${hardware_interface_VERSION} VERSION_LESS 2.52.0)
   target_link_libraries(fanuc_robot_driver PUBLIC ${hardware_interface_LIBRARIES})
@@ -46,6 +43,16 @@ target_include_directories(fanuc_robot_driver PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
+install(
+  TARGETS fanuc_robot_driver
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY include/
+        DESTINATION include
+)
+ament_export_include_directories(include)
+
 pluginlib_export_plugin_description_file(hardware_interface hardware_interface_plugin.xml)
 
 add_library(fanuc_hardware_interface_constants INTERFACE)
@@ -55,20 +62,9 @@ target_include_directories(fanuc_hardware_interface_constants INTERFACE
 )
 
 
-
 if(BUILD_TESTING)
   #  ...
 endif()
-
-install(
-  TARGETS fanuc_robot_driver
-  DESTINATION lib/${PROJECT_NAME}
-)
-
-install(
-    DIRECTORY include/
-    DESTINATION include/
-)
 
 install(
     TARGETS fanuc_hardware_interface_constants

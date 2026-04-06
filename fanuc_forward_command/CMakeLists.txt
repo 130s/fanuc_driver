@@ -7,12 +7,13 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
 find_package(controller_manager REQUIRED)
+find_package(fanuc_hardware_interface REQUIRED)
 find_package(forward_command_controller REQUIRED)
 find_package(joint_state_broadcaster REQUIRED)
-find_package(fanuc_hardware_interface REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Install launch files
 install(FILES
