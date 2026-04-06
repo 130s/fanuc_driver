@@ -14,11 +14,13 @@ SPDX-License-Identifier: Apache-2.0
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>rclcpp</depend>
-  <depend>std_msgs</depend>
-  <depend>sensor_msgs</depend>
+  <depend>launch</depend>
+  <depend>launch_ros</depend>
   <depend>qt_gui</depend>
   <depend>qt_gui_cpp</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
