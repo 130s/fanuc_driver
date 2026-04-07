@@ -31,6 +31,14 @@ find_package(trajectory_msgs REQUIRED)
 
 add_library(fanuc_robot_driver SHARED src/hardware_interface.cpp)
 
+target_link_libraries(fanuc_robot_driver PUBLIC
+  pluginlib::pluginlib
+  fanuc_libs::rmi
+  fanuc_libs::stream_motion
+  fanuc_libs::fanuc_client
+  fanuc_libs::gpio_config
+)
+
 if(${hardware_interface_VERSION} VERSION_LESS 2.52.0)
   target_link_libraries(fanuc_robot_driver PUBLIC ${hardware_interface_LIBRARIES})
   target_include_directories(fanuc_robot_driver PRIVATE ${hardware_interface_INCLUDE_DIRS})

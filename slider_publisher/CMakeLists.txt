@@ -13,8 +13,6 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(Qt5 COMPONENTS Widgets Core REQUIRED)
-find_package(launch REQUIRED)
-find_package(launch_ros REQUIRED)
 find_package(qt_gui REQUIRED)
 find_package(qt_gui_cpp REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -31,8 +29,6 @@ ament_target_dependencies(slider_gui_node
   rclcpp
   std_msgs
   sensor_msgs
-  launch
-  launch_ros
 )
 
 # Install executable

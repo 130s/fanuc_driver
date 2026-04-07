@@ -129,12 +129,9 @@ install(FILES
     fanuc_force_sensor_broadcaster_plugins.xml
     DESTINATION share/${PROJECT_NAME}
 )
-install(FILES test/test_config.yaml
-        DESTINATION share/${PROJECT_NAME}/test
-)
 
 # Export pluginlib plugins
-pluginlib_export_plugin_description_file(controller_interface controller_interface_plugins.xml scaled_joint_trajectory_controller_plugins.xml)
+pluginlib_export_plugin_description_file(controller_interface scaled_joint_trajectory_controller_plugins.xml)
 pluginlib_export_plugin_description_file(controller_interface fanuc_gpio_controller_plugins.xml)
 pluginlib_export_plugin_description_file(controller_interface fanuc_force_sensor_broadcaster_plugins.xml)
 
