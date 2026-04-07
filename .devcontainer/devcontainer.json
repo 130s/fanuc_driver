@@ -1,8 +1,8 @@
 {
-    "name": "ROS Jazzy Fanuc Driver",
-    "image": "ros:jazzy-ros-core",
-    //"image": "d130s/ros:jazzy-ros-core_fanuc_reb",
-    //"image": "d130s/ros:jazzy-ros-core_fanuc_reb_no-gitconf"
+    "name": "Fanuc Driver ROS Jazzy",
+    //"image": "ros:humble-ros-core",
+    //"image": "d130s/ros:humble-ros-core_fanuc",
+    "image": "d130s/ros:jazzy-ros-core_fanuc-driver",
     
     // Mount the driver source code into the workspace
     "mounts": [
@@ -33,16 +33,14 @@
         "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
         // Mount Xauthority to handle the "Authorization required" error
         "-v", "${localEnv:HOME}/.Xauthority:/root/.Xauthority"
-        ],
+    ],
     "containerEnv": {
         "DISPLAY": "${localEnv:DISPLAY}"
-    }
-
+    },
     // Use 'remoteUser' if you want to avoid permission issues with the mounted folder
     "remoteUser": "root",
 
     // Initialize the workspace shell
     "onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update && rosdep install --from-paths src --ignore-src -y",
-    //"onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update",
-    "postCreateCommand": ". /opt/ros/jazzy/setup.sh && colcon build --symlink-install --packages-up-to fanuc_libs fanuc_moveit_config --cmake-args -DBUILD_EXAMPLES=ON"
+    "postCreateCommand": ". /opt/ros/jazzy/setup.sh && colcon build --parallel-workers 2 --symlink-install --cmake-args -DBUILD_EXAMPLES=OFF && . ./install/setup.sh"
 }
