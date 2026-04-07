@@ -26,6 +26,7 @@ FetchContent_Declare(
     readerwriterqueue
     GIT_REPOSITORY ${CMAKE_SOURCE_DIR}/dependencies/readerwriterqueue
     GIT_TAG 211616e0554f93152ab3108b8d93fbc23174a9d9
+        
     PATCH_COMMAND bash ${CMAKE_SOURCE_DIR}/dependencies/apply_patch.bash ${CMAKE_SOURCE_DIR}/dependencies/readerwriterqueue.patch
 )
 FetchContent_MakeAvailable(readerwriterqueue)
@@ -44,6 +45,7 @@ FetchContent_Declare(
     reflect-cpp
     GIT_REPOSITORY ${CMAKE_SOURCE_DIR}/dependencies/reflect-cpp
     GIT_TAG 2a0fdeabe35bdab0e07e05d4f869ca88bd6d2b8c
+    GIT_SUBMODULES ""
     PATCH_COMMAND bash ${CMAKE_SOURCE_DIR}/dependencies/apply_patch.bash ${CMAKE_SOURCE_DIR}/dependencies/reflectcpp.patch
 )
 set(REFLECTCPP_BUILD_SHARED OFF CACHE BOOL "Build reflectcpp as a shared library")
