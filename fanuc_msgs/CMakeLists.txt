@@ -60,38 +60,6 @@ set(srv_files
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
-  msg/AnalogIO.msg
-  msg/AnalogIOCmd.msg
-  msg/AnalogIOState.msg
-  msg/BoolIO.msg
-  msg/CollaborativeSpeedScaling.msg
-  msg/ConnectionStatus.msg
-  msg/ForceSensor.msg
-  msg/IOCmd.msg
-  msg/IOState.msg
-  msg/IOType.msg
-  msg/NumReg.msg
-  msg/NumRegCmd.msg
-  msg/NumRegState.msg
-  msg/RobotStatus.msg
-  msg/RobotStatusExt.msg
-  srv/CfgForceSensor.srv
-  srv/GetAnalogIO.srv
-  srv/GetBoolIO.srv
-  srv/GetGroupIO.srv
-  srv/GetNumReg.srv
-  srv/GetPosReg.srv
-  srv/SetAnalogIO.srv
-  srv/SetBoolIO.srv
-  srv/SetGenOverride.srv
-  srv/SetGroupIO.srv
-  srv/SetNumReg.srv
-  srv/SetPayloadComp.srv
-  srv/SetPayloadID.srv
-  srv/SetPayloadValue.srv
-  srv/SetPosReg.srv
-DEPENDENCIES rosidl_default_generators
 )
-ament_export_dependencies(rosidl_default_runtime)
 
 ament_package()
