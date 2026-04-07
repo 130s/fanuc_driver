@@ -1,7 +1,8 @@
 {
     "name": "ROS Jazzy Fanuc Driver",
     "image": "ros:jazzy-ros-core",
-    //"image": "d130s/ros:jazzy-ros-core_fanuc",
+    //"image": "d130s/ros:jazzy-ros-core_fanuc_reb",
+    //"image": "d130s/ros:jazzy-ros-core_fanuc_reb_no-gitconf"
     
     // Mount the driver source code into the workspace
     "mounts": [
@@ -41,5 +42,7 @@
     "remoteUser": "root",
 
     // Initialize the workspace shell
-    "postCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions && rosdep init &&rosdep update && rosdep install --from-paths src --ignore-src -y; colcon build --symlink-install --packages-up-to fanuc_libs fanuc_moveit_config --cmake-args -DBUILD_EXAMPLES=ON"
+    "onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update && rosdep install --from-paths src --ignore-src -y",
+    //"onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update",
+    "postCreateCommand": ". /opt/ros/jazzy/setup.sh && colcon build --symlink-install --packages-up-to fanuc_libs fanuc_moveit_config --cmake-args -DBUILD_EXAMPLES=ON"
 }
