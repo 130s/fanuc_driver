@@ -17,7 +17,7 @@ controller_manager:
 fanuc_gpio_controller:
   ros__parameters:
     gpio_config_file_package: fanuc_hardware_interface
-    gpio_config_file_path: config/example_gpio_config.yaml
+    gpio_config_file_path: config/example_gpio_config_small.yaml
 
 joint_trajectory_controller:
   ros__parameters:
