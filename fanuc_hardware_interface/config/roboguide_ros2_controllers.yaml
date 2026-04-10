@@ -40,23 +40,23 @@ joint_trajectory_controller:
       stopped_velocity_tolerance: 0.05
       goal_time: 0.5
       J1:
-        goal: 0.7
-        trajectory: 0.7
+        goal: 0.1
+        trajectory: 0.1
       J2:
-        goal: 0.7
-        trajectory: 0.7
+        goal: 0.1
+        trajectory: 0.1
       J3:
-        goal: 0.7
-        trajectory: 0.7
+        goal: 0.1
+        trajectory: 0.1
       J4:
-        goal: 0.9
-        trajectory: 0.9
+        goal: 0.1
+        trajectory: 0.1
       J5:
-        goal: 0.7
-        trajectory: 0.7
+        goal: 0.1
+        trajectory: 0.1
       J6:
-        goal: 0.7
-        trajectory: 0.7
+        goal: 0.1
+        trajectory: 0.1
 
 forward_position_controller:
   ros__parameters:
