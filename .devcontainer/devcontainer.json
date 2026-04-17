@@ -1,14 +1,15 @@
 {
-    "name": "Fanuc Driver ROS Jazzy",
+    "name": "ROS Jazzy Fanuc Driver",
     //"image": "ros:humble-ros-core",
     //"image": "d130s/ros:humble-ros-core_fanuc",
     "image": "d130s/ros:jazzy-ros-core_fanuc-driver",
     
     // Mount the driver source code into the workspace
     "mounts": [
-        "source=//home/n130s/data/Dropbox/pg/myDevelopment/git_repo/ROS/cws_base/FANUC-CORPORATION,target=/cws/src/FANUC-CORPORATION,type=bind",
+        //"source=/home/n130s/data/Dropbox/pg/myDevelopment/git_repo/ROS/cws_base/FANUC-CORPORATION,target=/cws/src/FANUC-CORPORATION,type=bind",
+        "source=/home/closer/persons/130s/git_repo/FANUC-CORPORATION,target=/cws/src/FANUC-CORPORATION,type=bind",
         "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
-    ],
+        ],
 
     // Set the working directory to your workspace root
     "workspaceFolder": "/cws",
@@ -31,22 +32,22 @@
         // Pass the host's DISPLAY variable
         "-e", "DISPLAY=${localEnv:DISPLAY}",
         "--device=/dev/dri:/dev/dri",  // Critical for Intel/AMD GPU access
-        "--gpus", "all",
         "--pid=host",
-        // Mount the X11 socket
-        "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
+        //"--gpus", "all",  // Want to utilize GPU but for now disabling due to https://github.com/kinu-garage/hut_10sqft/issues/1426#issuecomment-4266285909
+        //"--group-add=video",      // By Gemini, Adds root to the video group for DRM access
+        //"--group-add=render",     // By Gemini, Adds root to the render group for DRI access
         // Mount Xauthority to handle the "Authorization required" error
-        "-v", "${localEnv:HOME}/.Xauthority:/root/.Xauthority"
+        "-v", "${localEnv:HOME}/.Xauthority:/root/.Xauthority:rw"  // By Gemini
     ],
     "containerEnv": {
         "DISPLAY": "${localEnv:DISPLAY}",
-        //"DISPLAY": "unix:0",  // Gemini suggested this but I'm not sure if we should use this
+        "XAUTHORITY": "/root/.Xauthority",
         "LIBGL_ALWAYS_SOFTWARE": "0" 
     },    
     // Use 'remoteUser' if you want to avoid permission issues with the mounted folder
     "remoteUser": "root",
 
     // Initialize the workspace shell
-    "onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update && rosdep install --from-paths src --ignore-src -y",
-    "postCreateCommand": ". /opt/ros/jazzy/setup.sh && colcon build --parallel-workers 2 --symlink-install --cmake-args -DBUILD_EXAMPLES=OFF && . ./install/setup.sh"
+    //"onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update && rosdep install --from-paths src --ignore-src -y",
+    "postCreateCommand": ". /opt/ros/jazzy/setup.sh && colcon build --symlink-install --cmake-args -DBUILD_EXAMPLES=OFF && . ./install/setup.sh"
 }
