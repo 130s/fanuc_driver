@@ -6,7 +6,8 @@
     
     // Mount the driver source code into the workspace
     "mounts": [
-        "source=//home/n130s/data/Dropbox/pg/myDevelopment/git_repo/ROS/cws_base/FANUC-CORPORATION,target=/cws/src/FANUC-CORPORATION,type=bind"
+        "source=//home/n130s/data/Dropbox/pg/myDevelopment/git_repo/ROS/cws_base/FANUC-CORPORATION,target=/cws/src/FANUC-CORPORATION,type=bind",
+        "source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"
     ],
 
     // Set the working directory to your workspace root
@@ -29,14 +30,19 @@
         "--ipc=host",
         // Pass the host's DISPLAY variable
         "-e", "DISPLAY=${localEnv:DISPLAY}",
+        "--device=/dev/dri:/dev/dri",  // Critical for Intel/AMD GPU access
+        "--gpus", "all",
+        "--pid=host",
         // Mount the X11 socket
         "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
         // Mount Xauthority to handle the "Authorization required" error
         "-v", "${localEnv:HOME}/.Xauthority:/root/.Xauthority"
     ],
     "containerEnv": {
-        "DISPLAY": "${localEnv:DISPLAY}"
-    },
+        "DISPLAY": "${localEnv:DISPLAY}",
+        //"DISPLAY": "unix:0",  // Gemini suggested this but I'm not sure if we should use this
+        "LIBGL_ALWAYS_SOFTWARE": "0" 
+    },    
     // Use 'remoteUser' if you want to avoid permission issues with the mounted folder
     "remoteUser": "root",
 
