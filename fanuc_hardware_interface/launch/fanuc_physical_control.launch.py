@@ -23,6 +23,21 @@ from launch_ros.parameter_descriptions import ParameterValue, ParameterFile
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+DEFAULT_6DOFROBOT_URDF = Command(
+    [
+        PathJoinSubstitution([FindExecutable(name="xacro")]),
+        " ",
+        PathJoinSubstitution(
+            [FindPackageShare("fanuc_hardware_interface"), "robot", "6dof_robot.urdf.xacro"]), " ",
+        "robot_series:=", LaunchConfiguration("robot_series"), " ",
+        "robot_ip:=", LaunchConfiguration("robot_ip"), " ",
+        "gpio_configuration:=", LaunchConfiguration("gpio_configuration"), " ",
+        "robot_model:=6dof_robot", " ",
+    ]
+)
+
+DEFAULT_ROBOT_NAME = "6dof_robot"
+
 
 def launch_setup(context, *args, **kwargs):
     robot_description_arg = LaunchConfiguration("robot_description")    
@@ -49,6 +64,7 @@ def launch_setup(context, *args, **kwargs):
     robot_model_str = robot_model.perform(context)
     robot_series_str = robot_series.perform(context)
     namespace_str = namespace.perform(context)
+    rviz_config_str = rviz_config.perform(context)
 
     # Use provided robot_description or generate from xacro
     if robot_description_arg_str and robot_description_arg_str.strip():
@@ -61,7 +77,7 @@ def launch_setup(context, *args, **kwargs):
         else:
             urdf_xacro_file = "6dof_robot.urdf.xacro"
 
-        robot_description = Command(
+        robot_description_cmd = Command(
             [
                 PathJoinSubstitution([FindExecutable(name="xacro")]),
                 " ",
@@ -108,9 +124,9 @@ def launch_setup(context, *args, **kwargs):
                 "' ",
             ]
         )
-    robot_description = {
-        "robot_description": ParameterValue(value=robot_description, value_type=str)
-    }
+        robot_description = {
+            "robot_description": ParameterValue(value=robot_description_cmd, value_type=str)
+        }
 
     ros_parameters = [
         robot_description,
@@ -329,6 +345,16 @@ def generate_launch_description():
             "rviz_config",
             default_value="",
             description="Path to custom RVIZ config file. If provided, uses this instead of default.",
+        ),
+        DeclareLaunchArgument(
+            "launch_rviz",
+            default_value="true",
+            description="Specify whether or not to open RVIZ.",
+        ),
+        DeclareLaunchArgument(
+            "robot_description",
+            default_value=DEFAULT_6DOFROBOT_URDF,
+            description="Pre-generated robot_description XML. If provided, skips xacro generation.",
         ),
     ]
     return LaunchDescription(
