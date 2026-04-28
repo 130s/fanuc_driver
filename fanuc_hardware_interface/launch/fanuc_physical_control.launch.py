@@ -25,6 +25,7 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def launch_setup(context, *args, **kwargs):
+    robot_description_arg = LaunchConfiguration("robot_description")    
     robot_model = LaunchConfiguration("robot_model")
     robot_series = LaunchConfiguration("robot_series")
     robot_ip = LaunchConfiguration("robot_ip")
@@ -32,6 +33,7 @@ def launch_setup(context, *args, **kwargs):
     gpio_config_package = LaunchConfiguration("gpio_config_package")
     gpio_config_path = LaunchConfiguration("gpio_config_path")
     launch_rviz = LaunchConfiguration("launch_rviz")
+    rviz_config = LaunchConfiguration("rviz_config")
     motion_control = LaunchConfiguration("motion_control")
     namespace = LaunchConfiguration("namespace")
     prefix = LaunchConfiguration("prefix")
@@ -43,62 +45,69 @@ def launch_setup(context, *args, **kwargs):
     origin_rp = LaunchConfiguration("origin_rp")
     origin_ry = LaunchConfiguration("origin_ry")
 
+    robot_description_arg_str = robot_description_arg.perform(context)
     robot_model_str = robot_model.perform(context)
     robot_series_str = robot_series.perform(context)
     namespace_str = namespace.perform(context)
 
-    if robot_series_str == "crx":
-        urdf_xacro_file = robot_model_str + ".urdf.xacro"
+    # Use provided robot_description or generate from xacro
+    if robot_description_arg_str and robot_description_arg_str.strip():
+        robot_description = {
+            "robot_description": robot_description_arg_str
+        }
     else:
-        urdf_xacro_file = "6dof_robot.urdf.xacro"
+        if robot_series_str == "crx":
+            urdf_xacro_file = robot_model_str + ".urdf.xacro"
+        else:
+            urdf_xacro_file = "6dof_robot.urdf.xacro"
 
-    robot_description = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            PathJoinSubstitution(
-                [FindPackageShare("fanuc_hardware_interface"), "robot", urdf_xacro_file]
-            ),
-            " ",
-            "robot_series:=",
-            robot_series,
-            " ",
-            "robot_ip:=",
-            robot_ip,
-            " ",
-            "gpio_configuration:=",
-            PathJoinSubstitution(
-                [FindPackageShare(gpio_config_package), gpio_config_path]
-            ),
-            " ",
-            "motion_control:=",
-            motion_control,
-            " ",
-            "robot_model:=",
-            robot_model,
-            " ",
-            "prefix:=",
-            prefix,
-            " ",
-            "child_link:=",
-            child_link,
-            " ",
-            "origin_xyz:='",
-            origin_x,
-            " ",
-            origin_y,
-            " ",
-            origin_z,
-            "' ",
-            "origin_rpy:='",
-            origin_rr,
-            " ",
-            origin_rp,
-            " ",
-            origin_ry,
-            "' ",
-        ]
-    )
+        robot_description = Command(
+            [
+                PathJoinSubstitution([FindExecutable(name="xacro")]),
+                " ",
+                PathJoinSubstitution(
+                    [FindPackageShare("fanuc_hardware_interface"), "robot", urdf_xacro_file]
+                ),
+                " ",
+                "robot_series:=",
+                robot_series,
+                " ",
+                "robot_ip:=",
+                robot_ip,
+                " ",
+                "gpio_configuration:=",
+                PathJoinSubstitution(
+                    [FindPackageShare(gpio_config_package), gpio_config_path]
+                ),
+                " ",
+                "motion_control:=",
+                motion_control,
+                " ",
+                "robot_model:=",
+                robot_model,
+                " ",
+                "prefix:=",
+                prefix,
+                " ",
+                "child_link:=",
+                child_link,
+                " ",
+                "origin_xyz:='",
+                origin_x,
+                " ",
+                origin_y,
+                " ",
+                origin_z,
+                "' ",
+                "origin_rpy:='",
+                origin_rr,
+                " ",
+                origin_rp,
+                " ",
+                origin_ry,
+                "' ",
+            ]
+        )
     robot_description = {
         "robot_description": ParameterValue(value=robot_description, value_type=str)
     }
@@ -126,15 +135,19 @@ def launch_setup(context, *args, **kwargs):
     )
     nodes_to_launch.append(robot_state_pub_node)
 
-    rviz_file = PathJoinSubstitution(
-        [
-            FindPackageShare(
-                PythonExpression(['"fanuc_" + "', robot_series, '" + "_description"'])
-            ),
-            "rviz",
-            PythonExpression(['"view_" + "', robot_series, '" + ".rviz"']),
-        ]
-    )
+    # Use provided rviz_config or generate default path
+    if rviz_config_str and rviz_config_str.strip():
+        rviz_file = rviz_config
+    else:
+        rviz_file = PathJoinSubstitution(
+            [
+                FindPackageShare(
+                    PythonExpression(['"fanuc_" + "', robot_series, '" + "_description"'])
+                ),
+                "rviz",
+                PythonExpression(['"view_" + "', robot_series, '" + ".rviz"']),
+            ]
+        )
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -306,6 +319,16 @@ def generate_launch_description():
             "origin_ry",
             default_value="0",
             description="Yaw rotation from parent_link to base_link",
+        ),
+        DeclareLaunchArgument(
+            "robot_description",
+            default_value=DEFAULT_6DOFROBOT_URDF,
+            description="Pre-generated robot_description XML. If provided, skips xacro generation.",
+        ),
+        DeclareLaunchArgument(
+            "rviz_config",
+            default_value="",
+            description="Path to custom RVIZ config file. If provided, uses this instead of default.",
         ),
     ]
     return LaunchDescription(
