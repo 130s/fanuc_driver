@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!--
+  SPDX-License-Identifier: Apache-2.0
+
+  Pilz-flavored wrapper around fanuc_moveit.launch.py.
+  It re-declares the same launch arguments and includes the base Python
+  launch file, overriding only the pilz-specific defaults, to avoid
+  duplicating the node/MoveItConfig setup.
+-->
+<launch>
+  <!-- Re-expose the arguments of the included launch so callers can still set them. -->
+  <arg name="robot_model" description="The robot model (required)."/>
+  <arg name="robot_ip" default="192.168.120.101" description="The robot's IP address."/>
+  <arg name="ros2_control_config"
+       default="$(find-pkg-share fanuc_moveit_config)/config/ros2_controllers_roboguide.yaml"
+       description="ROS 2 control configuration file for the controllers."/>
+  <arg name="gpio_configuration"
+       default="$(find-pkg-share fanuc_hardware_interface)/config/example_gpio_config.yaml"
+       description="YAML file to specify the GPIO configuration. See https://fanuc-corporation.github.io/fanuc_driver_doc/main/docs/environment/roboguide.html#using-fanuc-gpio-config-small-yaml"/>
+  <arg name="use_mock" default="false" description="Whether to use a mock hardware interface."/>
+  <arg name="planning_pipeline" default="pilz_industrial_motion_planner"
+       description="MoveIt planning pipeline to use."/>
+  <arg name="launch_rviz" default="true"
+       description="Whether to launch RViz for visualization."/>
+
+  <!-- Pilz-specific override. -->
+  <arg name="joint_limits_file"
+       default="$(find-pkg-share fanuc_moveit_config)/config/pilz_joint_limits.yaml"
+       description="Joint limits YAML file passed to MoveIt (Pilz)."/>
+
+  <include file="$(find-pkg-share fanuc_moveit_config)/launch/fanuc_moveit.launch.py">
+    <arg name="robot_model" value="$(var robot_model)"/>
+    <arg name="robot_ip" value="$(var robot_ip)"/>
+    <arg name="ros2_control_config" value="$(var ros2_control_config)"/>
+    <arg name="gpio_configuration" value="$(var gpio_configuration)"/>
+    <arg name="use_mock" value="$(var use_mock)"/>
+    <arg name="planning_pipeline" value="$(var planning_pipeline)"/>
+    <arg name="launch_rviz" value="$(var launch_rviz)"/>
+    <arg name="joint_limits_file"
+         value="$(find-pkg-share fanuc_moveit_config)/config/pilz_joint_limits.yaml"/>
+  </include>
+</launch>

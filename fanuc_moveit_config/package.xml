@@ -30,6 +30,7 @@ SPDX-License-Identifier: Apache-2.0
   <exec_depend>moveit_ros_visualization</exec_depend>
   <exec_depend>moveit_servo</exec_depend>
   <exec_depend>moveit_simple_controller_manager</exec_depend>
+  <exec_depend>pilz_industrial_motion_planner</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>fanuc_crx_description</exec_depend>
   <exec_depend>urdf</exec_depend>
