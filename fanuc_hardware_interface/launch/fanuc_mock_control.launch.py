@@ -8,6 +8,7 @@ from launch.actions import (
     DeclareLaunchArgument,
     OpaqueFunction,
     ExecuteProcess,
+    IncludeLaunchDescription,
 )
 from launch.conditions import IfCondition
 from launch.substitutions import (
@@ -25,6 +26,7 @@ from launch_ros.substitutions import FindPackageShare
 def launch_setup(context, *args, **kwargs):
     robot_model = LaunchConfiguration("robot_model")
     robot_series = LaunchConfiguration("robot_series")
+    robot_description_arg = LaunchConfiguration("robot_description")
     ros2_control_config = LaunchConfiguration("ros2_control_config")
     launch_rviz = LaunchConfiguration("launch_rviz")
     namespace = LaunchConfiguration("namespace")
@@ -46,7 +48,9 @@ def launch_setup(context, *args, **kwargs):
     else:
         urdf_xacro_file = "6dof_robot.urdf.xacro"
 
-    robot_description = Command(
+    # If caller provided `robot_description`, use it. Otherwise build mock robot_description
+    # Build a robot_description command substitution for mock use
+    robot_description_cmd = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
@@ -86,9 +90,6 @@ def launch_setup(context, *args, **kwargs):
             "' ",
         ]
     )
-    robot_description = {
-        "robot_description": ParameterValue(value=robot_description, value_type=str)
-    }
 
     ros_parameters = [
         robot_description,
@@ -133,6 +134,7 @@ def launch_setup(context, *args, **kwargs):
     )
     nodes_to_launch.append(rviz_node)
 
+    # Slider GUI stays part of the mock launch
     slider_test_node = Node(
         package="slider_publisher",
         executable="slider_gui_node",
@@ -140,7 +142,6 @@ def launch_setup(context, *args, **kwargs):
         namespace=namespace,
         output="both",
     )
-    nodes_to_launch.append(slider_test_node)
 
     if namespace_str == "":
         controller_manager_name_argument = ""
@@ -192,7 +193,7 @@ def launch_setup(context, *args, **kwargs):
         ),
     ]
 
-    return nodes_to_launch + controller_spawner_processes
+    return [include_physical, slider_test_node]
 
 
 def generate_launch_description():
