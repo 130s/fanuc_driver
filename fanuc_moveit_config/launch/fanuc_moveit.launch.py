@@ -31,6 +31,33 @@ def launch_setup(context, *args, **kwargs):
 
     nodes_to_launch = []
 
+    # Build robot_description for MoveIt and reuse it when including mock control
+    description_arguments = {
+        "robot_ip": robot_ip.perform(context),
+        "use_mock": use_mock.perform(context),
+        "gpio_configuration": gpio_configuration.perform(context),
+    }
+
+    urdf_full_path = os.path.join(
+        get_package_share_directory("fanuc_hardware_interface"),
+        "robot",
+        f"{robot_model.perform(context)}.urdf.xacro",
+    )
+
+    moveit_config = (
+        MoveItConfigsBuilder(
+            robot_model.perform(context), package_name="fanuc_moveit_config"
+        )
+        .robot_description(file_path=urdf_full_path, mappings=description_arguments)
+        .robot_description_semantic(file_path=f"srdf/{robot_model.perform(context)}.srdf")
+        .trajectory_execution(file_path="config/moveit_controllers.yaml")
+        .planning_scene_monitor(
+            publish_robot_description=True, publish_robot_description_semantic=True
+        )
+        .planning_pipelines(pipelines=["ompl"])
+        .to_moveit_configs()
+    )
+
     # Conditionally include the appropriate control launch file
     include_fanuc_control = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -56,7 +83,6 @@ def launch_setup(context, *args, **kwargs):
         condition=UnlessCondition(use_mock),
     )
     nodes_to_launch.append(include_fanuc_control)
-
     include_fanuc_mock_control = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution(
@@ -74,6 +100,7 @@ def launch_setup(context, *args, **kwargs):
             "gpio_config_path": gpio_config_path,
             "ros2_control_config": ros2_control_config,
             "launch_rviz": "false",
+            "robot_description": moveit_config.robot_description,
         }.items(),
         condition=IfCondition(use_mock),
     )
