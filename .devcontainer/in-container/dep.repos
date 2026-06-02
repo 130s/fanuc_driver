@@ -1,0 +1,10 @@
+repositories:
+  moveit:
+    type: git
+    url: https://github.com/130s/moveit2
+    version: CU-86ex8ucdt_fanucdriverjazzy_Isaac-Saito  # Base off of 2.12.4
+
+  moveit_msgs:
+    type: git
+    url: https://github.com/130s/moveit_msgs
+    version: CU-86ex8ucdt_fanucdriverjazzy_Isaac-Saito  # Base off of ros2 branch as of 2026/05/25

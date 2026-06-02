@@ -1,18 +1,17 @@
 {
-    "name": "Fanuc Driver for ROS Jazzy",
-    //"image": "ros:jazzy-ros-core",
-    "image": "d130s/ros:jazzy-ros-core_fanuc",
+  "name": "fanuc_driver_ros2_jazzy",
+  "dockerComposeFile": ["docker-compose.yml"],
+  // Mount the driver source code into the workspace
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/cws/src/FANUC-CORPORATION/fanuc_driver,type=bind",
+    "source=${localWorkspaceFolder}/../fanuc_description,target=/cws/src/FANUC-CORPORATION/fanuc_description,type=bind"
+  ],
+  "service": "gpu",
 
-    // Mount the driver source code into the workspace
-        "mounts": [
-            "source=${localWorkspaceFolder},target=/cws/src/FANUC-CORPORATION/fanuc_driver,type=bind",
-            "source=${localWorkspaceFolder}/../fanuc_description,target=/cws/src/FANUC-CORPORATION/fanuc_description,type=bind"
-        ],
+  // Set the working directory to your workspace root
+  "workspaceFolder": "/cws",
 
-    // Set the working directory to your workspace root
-    "workspaceFolder": "/cws",
-
-    "customizations": {
+  "customizations": {
         "vscode": {
             "extensions": [
                 "ms-iot.vscode-ros",
@@ -20,11 +19,10 @@
                 "redhat.vscode-yaml"
             ]
         }
-    },
-
-    // Allow UDP/TCP to reach outside by using the host network
-    // Also necessary for ROS 2 Discovery (DDS) to work seamlessly
-    "runArgs": [
+  },
+  // Allow UDP/TCP to reach outside by using the host network
+  // Also necessary for ROS 2 Discovery (DDS) to work seamlessly
+  "runArgs": [
         "--network=host",
         "--ipc=host",
         // Pass the host's DISPLAY variable
@@ -33,14 +31,15 @@
         "-v", "/tmp/.X11-unix:/tmp/.X11-unix:rw",
         // Mount Xauthority to handle the "Authorization required" error
         "-v", "${localEnv:HOME}/.Xauthority:/root/.Xauthority"
-    ],
-    "containerEnv": {
+  ],
+  "containerEnv": {
         "DISPLAY": "${localEnv:DISPLAY}"
-    },
-    // Use 'remoteUser' if you want to avoid permission issues with the mounted folder
-    "remoteUser": "root",
+  },
+  // Use 'remoteUser' if you want to avoid permission issues with the mounted folder
+  "remoteUser": "root",
 
-    // Initialize the workspace shell
-    "onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update && rosdep install --from-paths src --ignore-src -y",
-    "postCreateCommand": "for d in /cws/src/FANUC-CORPORATION/fanuc_driver/.git/modules/fanuc_libs/dependencies/sockpp /cws/src/FANUC-CORPORATION/fanuc_driver/.git/modules/fanuc_libs/dependencies/readerwriterqueue /cws/src/FANUC-CORPORATION/fanuc_driver/.git/modules/fanuc_libs/dependencies/yaml-cpp /cws/src/FANUC-CORPORATION/fanuc_driver/.git/modules/fanuc_libs/dependencies/reflect-cpp; do git config --global --add safe.directory $d; done && . /opt/ros/jazzy/setup.sh && colcon build --symlink-install --cmake-args -DBUILD_EXAMPLES=OFF && . ./install/setup.sh"
+  // Initialize the workspace shell
+  "initializeCommand": "bash .devcontainer/initializeCommand.sh",
+  "onCreateCommand": "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update && rosdep install --from-paths src --ignore-src -y",
+  "postCreateCommand": "bash /tmp/postCreateCommand.sh"
 }

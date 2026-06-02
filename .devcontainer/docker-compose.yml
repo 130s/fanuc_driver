@@ -1,0 +1,36 @@
+x-common: &common-service
+  #image: ros:jazzy-ros-core
+  image: d130s/ros:jazzy-ros-core_fanuc  # TEMPORARY dev
+  privileged: true
+  network_mode: host
+  command: /bin/bash
+  tty: true
+  volumes:
+    - /tmp/.X11-unix:/tmp/.X11-unix
+    - $XAUTHORITY:/root/.Xauthority
+    - ./in-container:/tmp/in-container
+  environment:
+    &common-env
+    QT_X11_NO_MITSHM: 1
+    DISPLAY: $DISPLAY
+
+services:
+  cpu:
+    <<: *common-service
+    container_name: fanuc_driver_container_cpu
+    profiles:
+      - cpu
+  gpu:
+    <<: *common-service
+    container_name: fanuc_driver_container_gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      <<: *common-env
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
