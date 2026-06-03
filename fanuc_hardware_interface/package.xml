@@ -19,7 +19,7 @@
   <depend>fanuc_libs</depend>
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
-
+  <depend>ros2_controllers</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>rclpy</depend>

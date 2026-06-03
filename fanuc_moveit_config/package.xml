@@ -19,7 +19,12 @@ SPDX-License-Identifier: Apache-2.0
 
   <depend>moveit_ros_control_interface</depend>
   <depend>moveit_simple_controller_manager</depend>
+  <depend>pilz_industrial_motion_planner</depend>
   <depend>pluginlib</depend>
+  <!-- Runtime controllers used by this config: fanuc_controllers/ScaledJointTrajectoryController
+       is spawned as arm_controller and referenced by fanuc_controllers_moveit_trajectory_plugin.xml.
+       Declared so building up to fanuc_moveit_config also builds fanuc_controllers. -->
+  <exec_depend>fanuc_controllers</exec_depend>
   <exec_depend>fanuc_crx_description</exec_depend>
   <exec_depend>fanuc_hardware_interface</exec_depend>
 

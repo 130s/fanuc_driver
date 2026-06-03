@@ -24,6 +24,12 @@ SPDX-License-Identifier: Apache-2.0
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
 
+  <!-- Controllers/description the launch spawns and loads at runtime:
+       fanuc_gpio_controller + fanuc_force_sensor_broadcaster (fanuc_controllers/*),
+       force_torque_sensor_broadcaster, and the fanuc_crx_description RViz config/URDF. -->
+  <exec_depend>fanuc_controllers</exec_depend>
+  <exec_depend>fanuc_crx_description</exec_depend>
+  <exec_depend>force_torque_sensor_broadcaster</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>rviz2</exec_depend>
   <exec_depend>xacro</exec_depend>
