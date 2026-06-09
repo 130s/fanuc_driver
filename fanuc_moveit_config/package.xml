@@ -22,6 +22,8 @@ SPDX-License-Identifier: Apache-2.0
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
+  <exec_depend>fanuc_controllers</exec_depend>
+  <exec_depend>fanuc_hardware_interface</exec_depend>
   <exec_depend>moveit_kinematics</exec_depend>
   <exec_depend>moveit_planners_ompl</exec_depend>
   <exec_depend>moveit_ros_move_group</exec_depend>
