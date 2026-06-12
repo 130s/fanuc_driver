@@ -15,6 +15,7 @@ SPDX-License-Identifier: Apache-2.0
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
+  <depend>rclpy</depend>
   <depend>std_msgs</depend>
   <depend>controller_manager</depend>
   <depend>forward_command_controller</depend>
@@ -23,6 +24,9 @@ SPDX-License-Identifier: Apache-2.0
   <depend>launch</depend>
   <depend>launch_ros</depend>
 
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>xacro</exec_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

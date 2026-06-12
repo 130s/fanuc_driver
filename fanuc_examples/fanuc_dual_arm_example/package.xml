@@ -21,6 +21,9 @@ SPDX-License-Identifier: Apache-2.0
   <depend>moveit_ros_control_interface</depend>
   <depend>pluginlib</depend>
 
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <exec_depend>fanuc_lrmate_description</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>moveit_kinematics</exec_depend>
