@@ -12,7 +12,7 @@
   <arg name="robot_model" description="The robot model (required)."/>
   <arg name="robot_ip" default="192.168.120.101" description="The robot's IP address."/>
   <arg name="ros2_control_config"
-       default="$(find-pkg-share fanuc_hardware_interface)/config/ros2_controllers.yaml"
+       default="$(find-pkg-share fanuc_moveit_config)/config/ros2_controllers_roboguide.yaml"
        description="ROS 2 control configuration file for the controllers."/>
   <arg name="gpio_configuration"
        default="$(find-pkg-share fanuc_hardware_interface)/config/example_gpio_config.yaml"
