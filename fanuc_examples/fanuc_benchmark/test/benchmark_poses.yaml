@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: 2026, FANUC America Corporation
+# SPDX-FileCopyrightText: 2026, FANUC CORPORATION
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Joint-space waypoint definition for the FANUC CRX-30iA benchmark.
+#
+# A "motion transaction" (MOTR) runs through the waypoints in the order listed
+# in `waypoint_names`:
+#   pose_begin -> (intermediate waypoints) -> pose_goal
+# The reverse MOTR runs them in the opposite order.
+#
+#   * The FIRST name in `waypoint_names` is treated as Pose-begin.
+#   * The LAST  name in `waypoint_names` is treated as Pose-goal.
+#   * Everything in between is an intermediate waypoint.
+#
+# Each entry under `poses` is one waypoint: a 6-element joint-angle array
+# (radians), ordered to match `joint_names` (J1..J6 from the base up).
+/**:
+  ros__parameters:
+    joint_names: ["J1", "J2", "J3", "J4", "J5", "J6"]
+    waypoint_names: ["pose_begin", "pick", "lifted", "pose_goal"]
+    poses:
+      pose_begin: [ 0.14684755138956665,
+                   -0.058797095776822884,
+                   -0.18551748265535783,
+                    0.15086534601287152,
+                   -1.3194004446360872,
+                    2.0312671324397935]
+      pick:       [-0.1388984899112493,
+                    0.5188158381490574,
+                   -0.3396693192561985,
+                   -0.04757220467727515,
+                   -0.6826475495877932,
+                    2.3860796849968873]
+      lifted:     [-0.1547731853726697,
+                    0.22544687273491795,
+                    0.001710182183508009,
+                   -0.031576651636635575,
+                   -1.317374577994864,
+                    2.3729859871814036]
+      pose_goal:  [-1.4254240834254497,
+                    1.2321291883464085,
+                   -0.1387138080120307,
+                   -0.16993121586237142,
+                   -0.22351959298829804,
+                    3.1510950786753047]

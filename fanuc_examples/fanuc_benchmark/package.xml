@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<!--
+SPDX-FileCopyrightText: 2026, FANUC America Corporation
+SPDX-FileCopyrightText: 2026, FANUC CORPORATION
+SPDX-License-Identifier: Apache-2.0
+-->
+<package format="3">
+  <name>fanuc_benchmark</name>
+  <version>0.1.0</version>
+  <description>
+    Motion-planner benchmark application for FANUC CRX robots. Drives a defined
+    "motion transaction" (begin -> waypoints -> goal) repeatedly through MoveIt
+    using OMPL, Pilz LIN or MoveIt Task Constructor, records timing statistics
+    and a rosbag of planned vs. actual joint trajectories and collaborative
+    speed scaling.
+  </description>
+
+  <maintainer email="fanuc-ros-maintainer@fanuc.co.jp">FANUC CORPORATION</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>moveit_core</depend>
+  <depend>moveit_msgs</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>moveit_task_constructor_core</depend>
+  <depend>moveit_task_constructor_msgs</depend>
+
+  <!-- Launch / runtime dependencies -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>launch_xml</exec_depend>
+  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_ros_move_group</exec_depend>
+  <exec_depend>moveit_planners_ompl</exec_depend>
+  <exec_depend>pilz_industrial_motion_planner</exec_depend>
+  <exec_depend>fanuc_moveit_config</exec_depend>
+  <exec_depend>fanuc_hardware_interface</exec_depend>
+  <exec_depend>fanuc_msgs</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
+
+  <!-- rosbag recording / plotting -->
+  <exec_depend>rosbag2_py</exec_depend>
+  <exec_depend>rosbag2_transport</exec_depend>
+  <exec_depend>ros2bag</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
