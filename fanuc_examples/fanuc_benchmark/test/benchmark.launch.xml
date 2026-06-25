@@ -66,6 +66,7 @@
   <arg name="launch_moveit" default="true" description="Also bring up move_group + the FANUC driver."/>
   <arg name="launch_rviz" default="true" description="Launch RViz with move_group."/>
   <arg name="record_bag" default="true" description="Record a rosbag of the run."/>
+  <arg name="stmo_recovery" default="true" description="Watch for STMO inactive warnings and issue the recovery service call."/>
   <arg name="output_dir" default="$(env PWD)" description="Directory for the recorded bag."/>
   <arg name="timestamp" default="$(command 'date +%Y%m%d_%H%M%S')"
        description="Evaluated once; used as the bag name suffix (benchmark_%TIMESTAMP%)."/>
@@ -79,7 +80,17 @@
     <arg name="launch_rviz" value="$(var launch_rviz)"/>
   </include>
 
-  <!-- 2. Record planned (controller_state.reference) vs. actual
+  <!-- 2. Watch the controller output for STMO inactive warnings and trigger the
+          recovery service call. If the workaround fails to restore motion_possible,
+          the watcher exits non-zero and on_exit="shutdown" tears down the whole
+          benchmark (move_group, driver, rosbag and the motion-task runner). -->
+  <executable
+    cmd="python3 $(find-pkg-share fanuc_benchmark)/test/stmo_recovery.py"
+    output="screen"
+    on_exit="shutdown"
+    if="$(var stmo_recovery)"/>
+
+  <!-- 3. Record planned (controller_state.reference) vs. actual
           (controller_state.feedback / joint_states) joints, the collaborative
           speed scaling, and the per-MOTR timing messages. -->
   <executable
@@ -87,7 +98,7 @@
     output="screen"
     if="$(var record_bag)"/>
 
-  <!-- 3. Motion-task runner (built with the full MoveIt config via the .py helper). -->
+  <!-- 4. Motion-task runner (built with the full MoveIt config via the .py helper). -->
   <include file="$(find-pkg-share fanuc_benchmark)/test/motion_task_test.launch.py">
     <arg name="robot_model" value="$(var robot_model)"/>
     <arg name="robot_ip" value="$(var robot_ip)"/>

@@ -145,6 +145,7 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.joint_limits,
         ],
         arguments=["--display-config", rviz_file],
+        condition=IfCondition(launch_rviz),
     )
     nodes_to_launch.append(rviz_node)
 
