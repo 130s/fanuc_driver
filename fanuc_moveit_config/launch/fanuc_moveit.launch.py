@@ -31,6 +31,7 @@ def launch_setup(context, *args, **kwargs):
     joint_limits_file = LaunchConfiguration("joint_limits_file")
     planning_pipeline = LaunchConfiguration("planning_pipeline")
     launch_rviz = LaunchConfiguration("launch_rviz")
+    rviz_output = LaunchConfiguration("rviz_output")
 
     nodes_to_launch = []
 
@@ -136,7 +137,10 @@ def launch_setup(context, *args, **kwargs):
         package="rviz2",
         executable="rviz2",
         name="rviz2",
-        output="both",
+        # "both" -> RViz stdout/stderr go to the console AND the log file, so a
+        # startup failure (e.g. "could not connect to display") is visible live
+        # instead of only ending up in ~/.ros/log. Configurable via rviz_output.
+        output=rviz_output.perform(context),
         parameters=[
             moveit_config.robot_description,
             moveit_config.robot_description_semantic,
@@ -223,6 +227,16 @@ def generate_launch_description():
             "launch_rviz",
             default_value="true",
             description="Whether to launch RViz for visualization.",
+        ),
+        DeclareLaunchArgument(
+            "rviz_output",
+            default_value="both",
+            choices=["screen", "log", "both"],
+            description=(
+                "RViz logging destination: 'log' (file only), 'screen' "
+                "(console only), or 'both' (console + file). Use 'both' to make "
+                "RViz startup failures visible on the console."
+            ),
         ),
         DeclareLaunchArgument(
             "motion_control",

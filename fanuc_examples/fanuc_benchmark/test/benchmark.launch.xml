@@ -65,6 +65,8 @@
   <!-- Orchestration -->
   <arg name="launch_moveit" default="true" description="Also bring up move_group + the FANUC driver."/>
   <arg name="launch_rviz" default="true" description="Launch RViz with move_group."/>
+  <arg name="rviz_output" default="both"
+       description="RViz logging destination: log (file only), screen (console only), or both. Defaults to both so RViz startup failures (e.g. a bad DISPLAY) show on the console."/>
   <arg name="record_bag" default="true" description="Record a rosbag of the run."/>
   <arg name="stmo_recovery" default="true" description="Watch for STMO inactive warnings and issue the recovery service call."/>
   <arg name="output_dir" default="$(env PWD)" description="Directory for the recorded bag."/>
@@ -78,6 +80,7 @@
     <arg name="planning_pipeline" value="$(var planning_pipeline)"/>
     <arg name="joint_limits_file" value="$(var joint_limits_file)"/>
     <arg name="launch_rviz" value="$(var launch_rviz)"/>
+    <arg name="rviz_output" value="$(var rviz_output)"/>
   </include>
 
   <!-- 2. Watch the controller output for STMO inactive warnings and trigger the

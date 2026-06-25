@@ -14,7 +14,9 @@ the known workaround is to switch the GPIO control state back on:
     ros2 service call /fanuc_gpio_controller/switch_control_state \\
         fanuc_msgs/srv/SwitchControlState "status: 1"
 
-This node detects that abort on ``/rosout``, issues the workaround **once** per
+This node detects that abort on ``/rosout`` -- and, equivalently, detects
+``motion_possible`` going ``false`` on ``/fanuc_gpio_controller/robot_status``
+(the abort line is not always emitted) -- issues the workaround **once** per
 episode, then confirms that ``motion_possible`` turns back ``true`` by watching
 ``/fanuc_gpio_controller/robot_status``. If the workaround does not restore
 motion within ``FANUC_BENCHMARK_STMO_TIMEOUT`` seconds the whole benchmark is
@@ -110,7 +112,24 @@ class StmoRecoveryNode(Node):
         return self._abort
 
     def _status_callback(self, msg: "RobotStatus") -> None:
+        previous = self._motion_possible
         self._motion_possible = bool(msg.motion_possible)
+        # Drive recovery directly off the status topic, not only off the
+        # /rosout abort line. The "STMO is inactive" message may never appear
+        # (or may not match RE_PATTERN) while motion is genuinely impossible; in
+        # that case the log-based path alone leaves the robot stuck. Treat
+        # motion_possible=false as an equally valid trigger for the SAME
+        # recovery workaround.
+        if should_trigger_recovery_from_status(self._motion_possible):
+            if previous is not False:
+                # Warn once per episode (on the transition into the impossible
+                # state) so the steady stream of status messages does not spam
+                # the log; _maybe_start_recovery() is debounced separately.
+                self.get_logger().warn(
+                    f"motion_possible is false on {ROBOT_STATUS_TOPIC}; "
+                    "triggering STMO recovery workaround."
+                )
+            self._maybe_start_recovery()
 
     def _rosout_callback(self, msg: Log) -> None:
         if not should_trigger_recovery(msg.msg):
@@ -174,6 +193,15 @@ class StmoRecoveryNode(Node):
 
 def should_trigger_recovery(message: str) -> bool:
     return bool(RE_PATTERN.search(message))
+
+
+def should_trigger_recovery_from_status(motion_possible) -> bool:
+    """Return True when the robot status reports motion is impossible.
+
+    ``motion_possible`` is tri-state: ``None`` (unknown) and ``True`` must NOT
+    trigger recovery; only an explicit ``False`` does.
+    """
+    return motion_possible is False
 
 
 def format_log_entry(timestamp: str, count: int) -> str:

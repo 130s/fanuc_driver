@@ -18,6 +18,14 @@ class StmoRecoveryTest(unittest.TestCase):
         )
         self.assertFalse(stmo_recovery.should_trigger_recovery("normal log line"))
 
+    def test_triggers_recovery_when_motion_impossible(self) -> None:
+        # motion_possible=false is an independent trigger for the same recovery,
+        # even when the "STMO is inactive" /rosout line never arrives.
+        self.assertTrue(stmo_recovery.should_trigger_recovery_from_status(False))
+        self.assertFalse(stmo_recovery.should_trigger_recovery_from_status(True))
+        # Unknown (no status received yet) must not trigger recovery.
+        self.assertFalse(stmo_recovery.should_trigger_recovery_from_status(None))
+
     def test_formats_log_entry(self) -> None:
         line = stmo_recovery.format_log_entry("2026-06-24T12:34:56", 3)
         self.assertIn("2026-06-24T12:34:56", line)

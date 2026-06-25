@@ -29,7 +29,7 @@ SPDX-License-Identifier: Apache-2.0
   <depend>moveit_ros_planning_interface</depend>
   <depend>moveit_task_constructor_core</depend>
   <depend>moveit_task_constructor_msgs</depend>
-
+  <depend>pilz_industrial_motion_planner</depend>
   <!-- Launch / runtime dependencies -->
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
@@ -37,7 +37,6 @@ SPDX-License-Identifier: Apache-2.0
   <exec_depend>moveit_configs_utils</exec_depend>
   <exec_depend>moveit_ros_move_group</exec_depend>
   <exec_depend>moveit_planners_ompl</exec_depend>
-  <exec_depend>pilz_industrial_motion_planner</exec_depend>
   <exec_depend>fanuc_moveit_config</exec_depend>
   <exec_depend>fanuc_hardware_interface</exec_depend>
   <exec_depend>fanuc_msgs</exec_depend>
