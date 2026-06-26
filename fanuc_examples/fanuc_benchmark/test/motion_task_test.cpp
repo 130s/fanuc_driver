@@ -27,6 +27,7 @@
 //                  as one task, then executed through MoveGroupInterface.
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <map>
 #include <memory>
@@ -37,6 +38,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <fanuc_msgs/msg/robot_status.hpp>
 #include <tf2_ros/buffer.h>
 
 #include <moveit/move_group_interface/move_group_interface.hpp>
@@ -269,10 +271,52 @@ int main(int argc, char** argv)
   auto result_pub = node->create_publisher<std_msgs::msg::String>(
       "/motion_task_test/motr_result", rclcpp::QoS(rclcpp::KeepAll()).reliable().transient_local());
 
+  // Track motion_possible from the GPIO controller so failed MOTRs can be
+  // classified as STMO aborts and retried once motion is restored. motion_drops
+  // counts true->false transitions; a MOTR that fails without any drop during
+  // its execution is a genuine planning/execution failure and is NOT retried.
+  std::atomic<bool> motion_possible{ true };
+  std::atomic<unsigned long> motion_drops{ 0 };
+  auto robot_status_sub = node->create_subscription<fanuc_msgs::msg::RobotStatus>(
+      "/fanuc_gpio_controller/robot_status", rclcpp::QoS(10),
+      [&motion_possible, &motion_drops](const fanuc_msgs::msg::RobotStatus::SharedPtr msg) {
+        const bool now_possible = msg->motion_possible;
+        if (motion_possible.exchange(now_possible) && !now_possible)
+          motion_drops.fetch_add(1);  // observed a true->false transition
+      });
+
   // Spin in the background so MoveGroupInterface / MTC can fetch state.
   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(node);
   std::thread spinner([&executor]() { executor.spin(); });
+
+  // Block until motion_possible has been continuously true for stable_s, giving
+  // up after timeout_s. Returns false on timeout (or shutdown). The continuity
+  // requirement avoids retrying on a momentary blip while STMO is still flapping.
+  auto wait_for_stable_motion_possible = [&motion_possible](double timeout_s, double stable_s) {
+    const auto deadline = Clock::now() + std::chrono::duration<double>(timeout_s);
+    while (rclcpp::ok() && Clock::now() < deadline)
+    {
+      if (motion_possible.load())
+      {
+        const auto stable_deadline = Clock::now() + std::chrono::duration<double>(stable_s);
+        bool held = true;
+        while (rclcpp::ok() && Clock::now() < stable_deadline)
+        {
+          if (!motion_possible.load())
+          {
+            held = false;
+            break;
+          }
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        if (held)
+          return true;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    return false;
+  };
 
   auto fail = [&](const std::string& msg) {
     RCLCPP_FATAL(logger, "%s", msg.c_str());
@@ -297,6 +341,21 @@ int main(int argc, char** argv)
   node->get_parameter_or("state_wait_timeout", state_wait_timeout, 30.0);  // seconds
   node->get_parameter_or("mtc_solver", mtc_solver_name, std::string("pipeline"));
   node->get_parameter_or("mtc_pipeline", mtc_pipeline, std::string("ompl"));
+
+  // STMO retry: when a MOTR is aborted because STMO went inactive
+  // (!motion_possible), the stmo_recovery node issues the GPIO workaround that
+  // restores motion_possible. Re-issuing the motion is what actually makes the
+  // arm resume, so retry the aborted MOTR up to motr_max_retries times, each
+  // time waiting up to motr_retry_motion_timeout s for motion_possible to be
+  // restored AND held continuously for motr_retry_stable_s s (a momentary blip
+  // is not enough -- the controller aborts again the instant STMO drops).
+  // motr_max_retries=0 disables retry and preserves the original behaviour.
+  int motr_max_retries = 0;
+  double motr_retry_motion_timeout = 0.0;
+  double motr_retry_stable_s = 0.0;
+  node->get_parameter_or("motr_max_retries", motr_max_retries, 3);
+  node->get_parameter_or("motr_retry_motion_timeout", motr_retry_motion_timeout, 15.0);  // seconds
+  node->get_parameter_or("motr_retry_stable_s", motr_retry_stable_s, 1.0);               // seconds
 
   std::vector<std::string> joint_names, waypoint_names;
   node->get_parameter_or("joint_names", joint_names,
@@ -390,7 +449,10 @@ int main(int argc, char** argv)
     return fail("Failed to reach the start pose; aborting.");
 
   // ---- main motion loop ------------------------------------------------
+  const std::size_t expected_motrs = static_cast<std::size_t>(iterations) * 2u;
   std::size_t completed = 0;
+  std::size_t succeeded = 0;
+  std::size_t failed = 0;
   int motr_index = 0;
   for (int it = 0; it < iterations && rclcpp::ok(); ++it)
   {
@@ -402,10 +464,45 @@ int main(int argc, char** argv)
       r.direction = forward ? "FWD" : "REV";
       r.segments = static_cast<int>(targets.size());
 
-      RCLCPP_INFO(logger, "MOTR %d [%s] iteration %d/%d ...", r.index, r.direction.c_str(), it + 1, iterations);
-      const auto motr_start = Clock::now();
-      r.success = backend->runMotr(targets, r.plan_s, r.exec_s);
-      r.total_s = secondsSince(motr_start);
+      RCLCPP_INFO(logger, "MOTR %d [%s] progress %zu/%zu (iteration %d/%d) ...", r.index, r.direction.c_str(),
+                  completed + 1, expected_motrs, it + 1, iterations);
+      // Attempt the MOTR, retrying STMO-induced aborts after motion is restored.
+      // plan_s/exec_s/total_s are reset each attempt so the published result
+      // reflects only the final (successful, or last) attempt, not the aborted
+      // ones -- otherwise runMotr's accumulation would double-count.
+      int attempt = 0;
+      while (true)
+      {
+        r.plan_s = 0.0;
+        r.exec_s = 0.0;
+        const auto drops_before = motion_drops.load();
+        const auto motr_start = Clock::now();
+        r.success = backend->runMotr(targets, r.plan_s, r.exec_s);
+        r.total_s = secondsSince(motr_start);
+
+        if (r.success)
+          break;
+
+        // Retry only STMO aborts: motion_possible dropped during this MOTR, or
+        // is still false now. A failure with motion_possible steady-true is a
+        // genuine planning/execution failure and must not be retried.
+        const bool stmo_abort = motion_drops.load() != drops_before || !motion_possible.load();
+        if (!stmo_abort || attempt >= motr_max_retries)
+          break;
+
+        ++attempt;
+        RCLCPP_WARN(logger,
+                    "MOTR %d [%s] aborted (STMO inactive); waiting up to %.1f s for motion_possible to be "
+                    "restored, then retrying (%d/%d) ...",
+                    r.index, r.direction.c_str(), motr_retry_motion_timeout, attempt, motr_max_retries);
+        if (!wait_for_stable_motion_possible(motr_retry_motion_timeout, motr_retry_stable_s))
+        {
+          RCLCPP_ERROR(logger,
+                       "MOTR %d [%s]: motion_possible was not stably restored within %.1f s; giving up retries.",
+                       r.index, r.direction.c_str(), motr_retry_motion_timeout);
+          break;
+        }
+      }
 
       // Publish the raw measurement (recorded into the rosbag).
       std_msgs::msg::String msg;
@@ -414,14 +511,31 @@ int main(int argc, char** argv)
       ++completed;
 
       if (!r.success)
-        RCLCPP_ERROR(logger, "MOTR %d [%s] FAILED after %.3f s", r.index, r.direction.c_str(), r.total_s);
+      {
+        ++failed;
+        RCLCPP_ERROR(logger, "MOTR %d [%s] FAILED after %.3f s (%d retr%s)", r.index, r.direction.c_str(), r.total_s,
+                     attempt, attempt == 1 ? "y" : "ies");
+      }
       else
-        RCLCPP_INFO(logger, "MOTR %d [%s] done: total=%.3f s (plan=%.3f exec=%.3f)", r.index, r.direction.c_str(),
-                    r.total_s, r.plan_s, r.exec_s);
+      {
+        ++succeeded;
+        if (attempt > 0)
+          RCLCPP_INFO(logger, "MOTR %d [%s] done after %d retr%s: total=%.3f s (plan=%.3f exec=%.3f)", r.index,
+                      r.direction.c_str(), attempt, attempt == 1 ? "y" : "ies", r.total_s, r.plan_s, r.exec_s);
+        else
+          RCLCPP_INFO(logger, "MOTR %d [%s] done: total=%.3f s (plan=%.3f exec=%.3f)", r.index, r.direction.c_str(),
+                      r.total_s, r.plan_s, r.exec_s);
+      }
     }
   }
 
   RCLCPP_INFO(logger, "Motion task complete: %zu MOTRs published on /motion_task_test/motr_result.", completed);
+  RCLCPP_INFO(logger, "Benchmark summary: requested=%zu completed=%zu succeeded=%zu failed=%zu", expected_motrs,
+              completed, succeeded, failed);
+  if (failed > 0)
+    RCLCPP_WARN(logger, "Benchmark incomplete: %zu MOTR(s) did not finish successfully.", failed);
+  else
+    RCLCPP_INFO(logger, "Benchmark complete: all %zu MOTR(s) finished successfully.", expected_motrs);
   RCLCPP_INFO(logger, "Run analyze_benchmark.py on the recorded bag for stats and plots.");
 
   // Give the recorder a moment to capture the final messages before exiting.

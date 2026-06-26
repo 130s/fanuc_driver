@@ -12,7 +12,7 @@ from launch.substitutions import (
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo
 from launch.conditions import IfCondition, UnlessCondition
 
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -150,6 +150,19 @@ def launch_setup(context, *args, **kwargs):
         ],
         arguments=["--display-config", rviz_file],
         condition=IfCondition(launch_rviz),
+    )
+    # Announce the RViz decision so a missing window is easy to diagnose: if this
+    # says launch_rviz=true but no [rviz2-*] lines / window follow, the failure
+    # is in this launch process's environment (e.g. DISPLAY), not the wiring.
+    nodes_to_launch.append(
+        LogInfo(
+            msg=[
+                "[fanuc_moveit] launch_rviz=",
+                launch_rviz,
+                " rviz_output=",
+                rviz_output,
+            ]
+        )
     )
     nodes_to_launch.append(rviz_node)
 

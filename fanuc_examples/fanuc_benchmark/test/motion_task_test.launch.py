@@ -80,6 +80,9 @@ def launch_setup(context, *args, **kwargs):
         "state_wait_timeout": float(arg("state_wait_timeout")),
         "mtc_solver": arg("mtc_solver"),
         "mtc_pipeline": arg("mtc_pipeline"),
+        "motr_max_retries": int(arg("motr_max_retries")),
+        "motr_retry_motion_timeout": float(arg("motr_retry_motion_timeout")),
+        "motr_retry_stable_s": float(arg("motr_retry_stable_s")),
     }
 
     motion_task_node = Node(
@@ -115,6 +118,9 @@ def generate_launch_description():
         ("state_wait_timeout", "30.0"),
         ("mtc_solver", "pipeline"),
         ("mtc_pipeline", "ompl"),
+        ("motr_max_retries", "3"),
+        ("motr_retry_motion_timeout", "15.0"),
+        ("motr_retry_stable_s", "1.0"),
     ]
     declared = [DeclareLaunchArgument(n, default_value=d) for n, d in names]
     declared.append(

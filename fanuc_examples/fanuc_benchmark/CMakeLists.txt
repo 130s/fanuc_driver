@@ -20,6 +20,7 @@ find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_task_constructor_core REQUIRED)
 find_package(moveit_task_constructor_msgs REQUIRED)
+find_package(fanuc_msgs REQUIRED)
 
 add_executable(motion_task_test test/motion_task_test.cpp)
 ament_target_dependencies(motion_task_test
@@ -31,6 +32,7 @@ ament_target_dependencies(motion_task_test
   moveit_ros_planning_interface
   moveit_task_constructor_core
   moveit_task_constructor_msgs
+  fanuc_msgs
 )
 
 install(TARGETS motion_task_test

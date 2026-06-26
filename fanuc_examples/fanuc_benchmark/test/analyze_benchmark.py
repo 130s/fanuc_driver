@@ -121,6 +121,18 @@ def process_timings(bag_path, out_dir):
         return
 
     planner = motrs[0].get("planner", "unknown")
+
+    # Each MOTR is recorded only after it completes (success or fail), so the bag
+    # tells us what ran and finished. A MOTR that hung mid-execution never gets
+    # published, leaving a gap in the index sequence -- detect that so "what did
+    # NOT finish" is answerable straight from this report.
+    recorded = len(motrs)
+    succeeded = sum(1 for m in motrs if m.get("success"))
+    failed = recorded - succeeded
+    indices = [m.get("index", 0) for m in motrs]
+    max_index = max(indices) if indices else 0
+    missing = sorted(set(range(1, max_index + 1)) - set(indices))
+
     logger.info("================ MOTION-TASK TIMING (planner=%s) ================", planner)
     logger.info("Per-MOTR begin->goal elapsed time:")
     for m in motrs:
@@ -133,6 +145,20 @@ def process_timings(bag_path, out_dir):
             m.get("plan_s", 0.0),
             m.get("exec_s", 0.0),
         )
+
+    # Headline so it is easy to see at a glance what ran, finished, and what did not.
+    logger.info("---------------------------------------------------------------")
+    logger.info("Finished MOTRs: %d recorded  (%d OK, %d FAIL)", recorded, succeeded, failed)
+    if missing:
+        logger.warning(
+            "Did NOT finish: MOTR(s) %s never completed (no result recorded) -- "
+            "the runner likely hung or was interrupted mid-execution.",
+            ", ".join(str(i) for i in missing),
+        )
+    if failed == 0 and not missing:
+        logger.info("RESULT: all %d recorded MOTR(s) finished successfully.", recorded)
+    else:
+        logger.warning("RESULT: INCOMPLETE -- %d failed, %d never finished.", failed, len(missing))
 
     def totals(direction):
         return [
