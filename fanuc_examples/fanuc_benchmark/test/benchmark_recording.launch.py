@@ -9,7 +9,7 @@
 # in launch-XML (XML has no event handlers). It owns everything that happens
 # around the recorded bag:
 #
-#   1. records the benchmark topics to <output_dir>/benchmark_<timestamp>,
+#   1. records the benchmark topics to <output_dir>/benchmark_fanuc-driver_<timestamp>,
 #   2. when the motion-task runner exits (run complete OR aborted), stops the
 #      recorder cleanly (SIGINT) so the bag is finalized,
 #   3. runs analyze_benchmark.py on the finalized bag so the per-MOTR results /
@@ -46,6 +46,8 @@ BENCHMARK_TOPICS = [
     "/joint_trajectory_controller/controller_state",
     "/fanuc_gpio_controller/collaborative_speed_scaling",
     "/display_planned_path",
+    # Running total of STMO SwitchControlState service calls (from stmo_recovery.py).
+    "/fanuc_benchmark/stmo_service_call_count",
 ]
 
 # A launch_ros Node named "motion_task_test" runs as process "motion_task_test-<n>".
@@ -65,7 +67,7 @@ def launch_setup(context, *args, **kwargs):
     record_bag = _as_bool(arg("record_bag"))
     run_analyze = _as_bool(arg("analyze"))
 
-    bag_path = os.path.join(output_dir, f"benchmark_{timestamp}")
+    bag_path = os.path.join(output_dir, f"benchmark_fanuc-driver_{timestamp}")
 
     # No bag requested: the only job left is to end the launch when the runner
     # finishes, so processes are not left alive.
@@ -149,7 +151,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "timestamp",
             default_value="run",
-            description="Bag name suffix (benchmark_<timestamp>). Passed in by benchmark.launch.xml.",
+            description="Bag name suffix (benchmark_fanuc-driver_<timestamp>). Passed in by benchmark.launch.xml.",
         ),
         DeclareLaunchArgument(
             "record_bag",

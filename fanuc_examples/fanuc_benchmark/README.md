@@ -77,7 +77,7 @@ Useful arguments: `iterations` (default 3), `velocity_scaling` /
 `mtc_solver` (`pipeline` | `interpolation`), `record_bag`, `output_dir`.
 
 The bag is written to `output_dir` (default: current directory) as
-`benchmark_<TIMESTAMP>`. Recorded topics: `/motion_task_test/motr_result`,
+`benchmark_fanuc-driver_<TIMESTAMP>`. Recorded topics: `/motion_task_test/motr_result`,
 `/joint_states`, `/joint_trajectory_controller/controller_state` (planned =
 `reference`, actual = `feedback`), `/fanuc_gpio_controller/collaborative_speed_scaling`,
 `/display_planned_path`.
@@ -85,16 +85,30 @@ The bag is written to `output_dir` (default: current directory) as
 ## Analyze
 
 ```bash
-ros2 run fanuc_benchmark analyze_benchmark.py <output_dir>/benchmark_<TIMESTAMP>
+ros2 run fanuc_benchmark analyze_benchmark.py <output_dir>/benchmark_fanuc-driver_<TIMESTAMP>
 # or just the newest benchmark_* bag in the current directory:
 ros2 run fanuc_benchmark analyze_benchmark.py
 ```
 
 This prints the per-MOTR begin→goal times and the aggregate statistics
-(count / mean / stdev / longest / shortest), writes `benchmark_timings.csv`, and
-saves `benchmark_joints.png` (planned vs. actual per joint) and
-`benchmark_speed_scaling.png`. Use `--no-show` for headless runs and
-`--log-level DEBUG|INFO|WARNING` to control verbosity.
+(count / mean / stdev / longest / shortest), the collaborative
+speed-scaling average / max / min / stdev, and the number of
+`fanuc_msgs/srv/SwitchControlState` (STMO recovery) service calls, and writes
+(all sharing the `benchmark_fanuc-driver` base name):
+
+| File | Contents |
+|------|----------|
+| `benchmark_fanuc-driver.csv` | per-MOTR timings |
+| `benchmark_fanuc-driver_speed_scaling_stats.csv` | `/fanuc_gpio_controller/collaborative_speed_scaling` average / max / min / stdev |
+| `benchmark_fanuc-driver_stmo_service_calls.csv` | count of `SwitchControlState` STMO-recovery service calls |
+| `benchmark_fanuc-driver_joint_states.csv` | time-lapsed J1..J6 **actual** positions from `/joint_states` |
+| `benchmark_fanuc-driver_planned_path.csv` | time-lapsed J1..J6 **planned** positions from `/display_planned_path` (the motion planner's plan) |
+| `benchmark_fanuc-driver_joints.png` | planned vs. actual per joint |
+| `benchmark_fanuc-driver_speed_scaling.png` | speed scaling over time |
+
+The two joint-position CSVs share the bag's `t=0`, so the actual trace and the
+planner's plan line up on the same time axis for later plotting. Use `--no-show`
+for headless runs and `--log-level DEBUG|INFO|WARNING` to control verbosity.
 
 ## Notes
 

@@ -22,7 +22,10 @@ episode, then confirms that ``motion_possible`` turns back ``true`` by watching
 motion within ``FANUC_BENCHMARK_STMO_TIMEOUT`` seconds the whole benchmark is
 aborted: the node exits with a non-zero code and the launch file's
 ``on_exit="shutdown"`` tears everything else down. The number of successful
-recoveries is reported when the node stops.
+recoveries and the number of ``SwitchControlState`` service calls issued are
+reported when the node stops; the running call total is also published on
+``/fanuc_benchmark/stmo_service_call_count`` so it is captured in the benchmark
+rosbag and folded into analyze_benchmark.py's final summary.
 """
 import os
 import re
@@ -38,11 +41,13 @@ try:
     from rclpy.node import Node
     from rcl_interfaces.msg import Log
     from fanuc_msgs.msg import RobotStatus
+    from std_msgs.msg import Int32
 except ModuleNotFoundError:  # pragma: no cover - exercised in minimal environments
     rclpy = None
     Node = object
     Log = object
     RobotStatus = object
+    Int32 = object
 
 LOG_PATH = Path(os.environ.get("FANUC_BENCHMARK_STMO_LOG", "/tmp/fanuc_benchmark_stmo_recovery.log"))
 
@@ -55,6 +60,9 @@ POLL_INTERVAL = float(os.environ.get("FANUC_BENCHMARK_STMO_POLL", "0.25"))
 COOLDOWN = float(os.environ.get("FANUC_BENCHMARK_STMO_COOLDOWN", "3.0"))
 
 ROBOT_STATUS_TOPIC = "/fanuc_gpio_controller/robot_status"
+# Running total of SwitchControlState service calls, published so it is captured
+# in the benchmark rosbag and analyze_benchmark.py can fold it into the summary.
+SERVICE_CALL_COUNT_TOPIC = "/fanuc_benchmark/stmo_service_call_count"
 SERVICE_CMD = [
     "ros2",
     "service",
@@ -79,12 +87,17 @@ class StmoRecoveryNode(Node):
         self._poll_interval = poll_interval
         self._cooldown = cooldown
 
-        self._count = 0
+        self._count = 0  # recoveries that succeeded (motion_possible restored)
+        self._service_calls = 0  # SwitchControlState calls issued (incl. the one that may fail)
         self._motion_possible = None  # tri-state: None=unknown, True, False
         self._abort = False
         self._lock = threading.Lock()
         self._recovering = False
         self._last_attempt = 0.0
+
+        self._call_count_publisher = self.create_publisher(
+            Int32, SERVICE_CALL_COUNT_TOPIC, 10
+        )
 
         self._subscription = self.create_subscription(
             Log,
@@ -106,6 +119,14 @@ class StmoRecoveryNode(Node):
     @property
     def recovery_count(self) -> int:
         return self._count
+
+    @property
+    def service_call_count(self) -> int:
+        return self._service_calls
+
+    def _publish_call_count(self, calls: int) -> None:
+        """Publish the running SwitchControlState call total so it lands in the bag."""
+        self._call_count_publisher.publish(Int32(data=calls))
 
     @property
     def aborted(self) -> bool:
@@ -154,9 +175,14 @@ class StmoRecoveryNode(Node):
 
     def _run_recovery(self) -> None:
         timestamp = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            self._service_calls += 1
+            calls = self._service_calls
         self.get_logger().warn(
-            f"STMO inactive detected at {timestamp}; issuing recovery workaround once."
+            f"STMO inactive detected at {timestamp}; issuing recovery workaround "
+            f"(SwitchControlState call #{calls})."
         )
+        self._publish_call_count(calls)
         issue_recovery_command()
 
         if self._wait_for_motion_possible():
@@ -173,10 +199,11 @@ class StmoRecoveryNode(Node):
         # Workaround did not restore motion -> abort the whole benchmark.
         with self._lock:
             count = self._count  # successful recoveries before this failure
+            service_calls = self._service_calls
         self.get_logger().error(
             f"Recovery FAILED: motion_possible did not turn true within "
             f"{self._recovery_timeout:.1f}s after the workaround. Aborting benchmark. "
-            f"{format_final_report(count)}"
+            f"{format_final_report(count, service_calls)}"
         )
         self._abort = True
         if rclpy is not None and rclpy.ok():
@@ -208,8 +235,11 @@ def format_log_entry(timestamp: str, count: int) -> str:
     return f"{timestamp} recovery_cmd_issued_count={count}\n"
 
 
-def format_final_report(count: int) -> str:
-    return f"STMO recoveries performed during this run: {count}"
+def format_final_report(count: int, service_calls: int = None) -> str:
+    report = f"STMO recoveries performed during this run: {count}"
+    if service_calls is not None:
+        report += f" (SwitchControlState service calls: {service_calls})"
+    return report
 
 
 def append_log_entry(timestamp: str, count: int) -> None:
@@ -235,10 +265,11 @@ def main() -> None:
         pass
     finally:
         count = node.recovery_count
+        service_calls = node.service_call_count
         aborted = node.aborted
-        # Report how many recoveries happened over the whole run.
-        node.get_logger().info(format_final_report(count))
-        print(format_final_report(count))
+        # Report how many recoveries happened and how many service calls it took.
+        node.get_logger().info(format_final_report(count, service_calls))
+        print(format_final_report(count, service_calls))
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

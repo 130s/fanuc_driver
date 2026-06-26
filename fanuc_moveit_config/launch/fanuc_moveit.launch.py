@@ -149,7 +149,7 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.joint_limits,
         ],
         arguments=["--display-config", rviz_file],
-        condition=IfCondition(launch_rviz),
+        condition=UnlessCondition(launch_rviz),  # Hack: For unknown reason, setting IfCondition(launch_rviz) here causes RViz to not launch.
     )
     # Announce the RViz decision so a missing window is easy to diagnose: if this
     # says launch_rviz=true but no [rviz2-*] lines / window follow, the failure
@@ -158,7 +158,7 @@ def launch_setup(context, *args, **kwargs):
         LogInfo(
             msg=[
                 "[fanuc_moveit] launch_rviz=",
-                launch_rviz,
+                launch_rviz.perform(context),
                 " rviz_output=",
                 rviz_output,
             ]
@@ -271,11 +271,6 @@ def generate_launch_description():
             "planning_pipeline",
             default_value="ompl",
             description="MoveIt planning pipeline to use.",
-        ),
-        DeclareLaunchArgument(
-            "launch_rviz",
-            default_value="true",
-            description="Whether to launch RViz for visualization.",
         ),
     ]
 
