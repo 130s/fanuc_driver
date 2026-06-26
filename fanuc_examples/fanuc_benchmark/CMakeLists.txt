@@ -44,8 +44,11 @@ install(DIRECTORY test
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Make the analysis helper runnable via `ros2 run fanuc_benchmark analyze_benchmark.py`.
-install(PROGRAMS test/analyze_benchmark.py
+# Make the analysis / comparison helpers runnable via `ros2 run fanuc_benchmark <script>`.
+install(PROGRAMS
+  test/analyze_benchmark.py
+  test/compare_benchmarks.py
+  test/run_pipeline_comparison.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

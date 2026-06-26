@@ -105,10 +105,49 @@ speed-scaling average / max / min / stdev, and the number of
 | `benchmark_fanuc-driver_planned_path.csv` | time-lapsed J1..J6 **planned** positions from `/display_planned_path` (the motion planner's plan) |
 | `benchmark_fanuc-driver_joints.png` | planned vs. actual per joint |
 | `benchmark_fanuc-driver_speed_scaling.png` | speed scaling over time |
+| `benchmark_fanuc-driver_overview.png` | **single combined image**: speed scaling (avg / max / min / ±stdev) + J1..J6 actual (`/joint_states`) vs planner plan (`/display_planned_path`), shared time axis |
 
 The two joint-position CSVs share the bag's `t=0`, so the actual trace and the
 planner's plan line up on the same time axis for later plotting. Use `--no-show`
 for headless runs and `--log-level DEBUG|INFO|WARNING` to control verbosity.
+
+## Compare multiple pipelines
+
+To benchmark several planners in one go, use `benchmark_setup.launch.xml`. It
+runs the benchmark **once per pipeline** (each a clean `benchmark.launch.xml`
+relaunch, so every pipeline gets its correct `move_group` config — Pilz its own
+joint-limits file — and the driver is brought up fresh; each run moves the arm
+to the start pose first, which doubles as the "return to start between
+pipelines" step):
+
+```bash
+# all three pipelines (mtc, pilz_lin, ompl), in order
+ros2 launch fanuc_benchmark benchmark_setup.launch.xml robot_ip:=192.168.120.101
+
+# a subset, with more iterations
+ros2 launch fanuc_benchmark benchmark_setup.launch.xml \
+  pipelines:=ompl,pilz_lin iterations:=5
+```
+
+Everything lands in one parent folder, grouped by pipeline:
+
+```text
+benchmark_fanuc-driver_<TIMESTAMP>/
+  benchmark_fanuc-driver_mtc/        # bag + per-run CSVs/PNGs (analyze_benchmark.py)
+  benchmark_fanuc-driver_pilz_lin/
+  benchmark_fanuc-driver_ompl/
+  benchmark_fanuc-driver_comparison.csv        # every MOTR, tagged with its pipeline
+  benchmark_fanuc-driver_comparison_stats.csv  # per-pipeline mean/stdev/min/max begin→goal
+  benchmark_fanuc-driver_comparison.png        # mean begin→goal per pipeline (FWD/REV/All)
+```
+
+The orchestration (`run_pipeline_comparison.py`) and the aggregation
+(`compare_benchmarks.py`) are separate scripts; you can re-aggregate an existing
+parent folder at any time with:
+
+```bash
+ros2 run fanuc_benchmark compare_benchmarks.py <parent_folder>
+```
 
 ## Notes
 

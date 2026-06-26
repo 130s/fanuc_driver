@@ -345,11 +345,15 @@ def process_joint_timeseries(bag_path, out_dir, t0):
 # Combined overview plot (one image)
 # --------------------------------------------------------------------------
 def process_combined_plot(bag_path, out_dir, t0, show):
-    """One image, shared time axis from launch start to end, stacking:
-      * collaborative_speed_scaling over time, with avg / max / min reference
-        lines and a +/-stdev band, and
-      * J1..J6 positions from /joint_states (actual, line) overlaid with the
-        motion planner's plan from /display_planned_path (planned, points)."""
+    """One image, ONE graph, shared time axis from launch start to end:
+      * all J1..J6 positions on the left y-axis -- /joint_states (actual, solid)
+        overlaid with the motion planner's plan from /display_planned_path
+        (planned, dotted), one color per joint, and
+      * collaborative_speed_scaling on a twin right y-axis, with avg / max / min
+        reference lines and a +/-stdev band.
+    Joints (radians) and the scaling factor (0-1) live on different y-scales, so
+    the scaling shares the time axis via a second y-axis rather than its own
+    panel."""
     import matplotlib
 
     if not show:
@@ -385,58 +389,60 @@ def process_combined_plot(bag_path, out_dir, t0, show):
                     plan["t"].append(rel + tfs)
                     plan["pos"].append(dict(zip(jt.joint_names, point.positions)))
 
-    joints = js_names or plan_names
+    joints = js_names or plan_names or []
     if not joints and not scaling["val"]:
         logger.warning("Nothing to plot for the combined overview (no joint or speed-scaling data).")
         return
 
-    joints = joints or []
-    n_panels = len(joints) + 1  # speed scaling on top, then one row per joint
-    fig, axes = plt.subplots(n_panels, 1, figsize=(12, 2.0 * n_panels), sharex=True)
-    if n_panels == 1:
-        axes = [axes]
+    fig, ax = plt.subplots(figsize=(13, 7))
+    cmap = plt.get_cmap("tab10")
 
-    # --- speed scaling with stat overlays ---
-    ax = axes[0]
+    # --- all joints on the left axis: actual (solid) vs planner plan (dotted) ---
+    for j, name in enumerate(joints):
+        color = cmap(j % 10)
+        if js["pos"]:
+            pts = [(tt, p[name]) for tt, p in zip(js["t"], js["pos"]) if name in p]
+            if pts:
+                ax.plot([x[0] for x in pts], [x[1] for x in pts], "-", lw=1.1, color=color, label=name)
+        if plan["pos"]:
+            pts = [(tt, p[name]) for tt, p in zip(plan["t"], plan["pos"]) if name in p]
+            if pts:
+                ax.plot([x[0] for x in pts], [x[1] for x in pts], ":", lw=1.3, color=color, alpha=0.9)
+    ax.set_xlabel("time since launch start [s]")
+    ax.set_ylabel("joint position [rad]")
+    ax.grid(True, alpha=0.3)
+
+    # Two legends: one mapping color->joint, one explaining solid vs dotted style.
+    from matplotlib.lines import Line2D
+    if joints:
+        joint_legend = ax.legend(loc="upper left", fontsize=8, ncol=2, title="joint")
+        ax.add_artist(joint_legend)
+        style_proxies = [
+            Line2D([0], [0], color="black", ls="-", lw=1.1, label="actual (joint_states)"),
+            Line2D([0], [0], color="black", ls=":", lw=1.3, label="planned (planner plan)"),
+        ]
+        ax.legend(handles=style_proxies, loc="lower left", fontsize=8)
+
+    # --- speed scaling on the twin right axis, with stat overlays ---
+    ax2 = ax.twinx()
     if scaling["val"]:
         vals = scaling["val"]
         nval = len(vals)
         avg = sum(vals) / nval
         stdev = math.sqrt(sum((v - avg) ** 2 for v in vals) / (nval - 1)) if nval > 1 else 0.0
         vmax, vmin = max(vals), min(vals)
-        ax.plot(scaling["t"], vals, lw=1.2, color="tab:red", label="speed scaling")
+        ax2.plot(scaling["t"], vals, lw=1.4, color="tab:red", label="speed scaling")
         span = [scaling["t"][0], scaling["t"][-1]]
-        ax.fill_between(span, avg - stdev, avg + stdev, color="tab:gray", alpha=0.15,
-                        label=f"±stdev ({stdev:.3f})")
-        ax.axhline(avg, color="tab:blue", lw=1.2, label=f"avg ({avg:.3f})")
-        ax.axhline(vmax, color="tab:green", ls="--", lw=1.0, label=f"max ({vmax:.3f})")
-        ax.axhline(vmin, color="tab:orange", ls="--", lw=1.0, label=f"min ({vmin:.3f})")
-        ax.legend(loc="upper right", fontsize=7, ncol=2)
-    else:
-        ax.text(0.5, 0.5, f"no data on {TOPIC_SPEED_SCALING}", ha="center", va="center", transform=ax.transAxes)
-    ax.set_ylabel("speed\nscaling")
-    ax.set_title("collaborative_speed_scaling (avg / max / min / ±stdev) + joint positions over time")
-    ax.grid(True, alpha=0.3)
+        ax2.fill_between(span, avg - stdev, avg + stdev, color="tab:red", alpha=0.08,
+                         label=f"±stdev ({stdev:.3f})")
+        ax2.axhline(avg, color="tab:red", lw=1.0, ls="-", alpha=0.6, label=f"avg ({avg:.3f})")
+        ax2.axhline(vmax, color="tab:red", lw=0.9, ls="--", alpha=0.6, label=f"max ({vmax:.3f})")
+        ax2.axhline(vmin, color="tab:red", lw=0.9, ls="-.", alpha=0.6, label=f"min ({vmin:.3f})")
+        ax2.legend(loc="upper right", fontsize=8, title="collaborative_speed_scaling")
+    ax2.set_ylabel("collaborative speed scaling", color="tab:red")
+    ax2.tick_params(axis="y", labelcolor="tab:red")
 
-    # --- one row per joint: actual (joint_states) vs planner plan ---
-    for j, name in enumerate(joints):
-        ax = axes[j + 1]
-        if js["pos"]:
-            jt = [(tt, p[name]) for tt, p in zip(js["t"], js["pos"]) if name in p]
-            if jt:
-                ax.plot([x[0] for x in jt], [x[1] for x in jt], lw=1.0, color="tab:blue",
-                        label="actual (joint_states)")
-        if plan["pos"]:
-            pt = [(tt, p[name]) for tt, p in zip(plan["t"], plan["pos"]) if name in p]
-            if pt:
-                ax.plot([x[0] for x in pt], [x[1] for x in pt], ".", ms=3, color="tab:red",
-                        label="planned (planner plan)")
-        ax.set_ylabel(f"{name}\n[rad]")
-        ax.grid(True, alpha=0.3)
-        if j == 0:
-            ax.legend(loc="upper right", fontsize=7)
-    axes[-1].set_xlabel("time since launch start [s]")
-
+    ax.set_title("Joint positions (actual vs. planner plan) and collaborative speed scaling over time")
     fig.tight_layout()
     path = os.path.join(out_dir, f"{OUTPUT_PREFIX}_overview.png")
     fig.savefig(path, dpi=120)

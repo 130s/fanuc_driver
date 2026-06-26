@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!--
+  SPDX-FileCopyrightText: 2026, FANUC America Corporation
+  SPDX-FileCopyrightText: 2026, FANUC CORPORATION
+  SPDX-License-Identifier: Apache-2.0
+
+  Multi-pipeline benchmark entry point.
+
+  Where benchmark.launch.xml runs ONE planning pipeline, this file compares
+  several. It selects the pipelines with the `pipelines` argument and runs each
+  one as its own clean benchmark.launch.xml relaunch (so every pipeline gets its
+  correct move_group config; Pilz in particular gets its own joint-limits file,
+  and the FANUC driver is brought up fresh each time). Each run moves the arm to
+  the start pose before timing, which doubles as the "return to start between
+  pipelines" step.
+
+  All runs share one parent folder; results are grouped per pipeline and then
+  aggregated into a single labeled comparison (CSV + plot):
+
+    ros2 launch fanuc_benchmark benchmark_setup.launch.xml robot_ip:=192.168.120.101
+
+    # only two pipelines, more iterations:
+    ros2 launch fanuc_benchmark benchmark_setup.launch.xml \
+      pipelines:=ompl,pilz_lin iterations:=5
+
+  The sequential orchestration (run pipeline -> wait -> next -> aggregate) cannot
+  be expressed in launch-XML, so it is delegated to run_pipeline_comparison.py.
+-->
+<launch>
+  <!-- Which pipelines to compare, in order. Subset of: mtc | pilz_lin | ompl. -->
+  <arg name="pipelines" default="mtc,pilz_lin,ompl"
+       description="Comma-separated planning pipelines to benchmark, in order."/>
+
+  <!-- Robot / hardware. -->
+  <arg name="robot_model" default="crx30ia" description="FANUC CRX model."/>
+  <arg name="robot_ip" default="192.168.120.101" description="The robot's IP address."/>
+
+  <!-- Run options forwarded to every per-pipeline benchmark.launch.xml. -->
+  <arg name="iterations" default="3" description="Number of forward+reverse MOTR repetitions per pipeline."/>
+  <arg name="velocity_scaling" default="0.1" description="Max velocity scaling factor (0-1)."/>
+  <arg name="acceleration_scaling" default="0.1" description="Max acceleration scaling factor (0-1)."/>
+  <arg name="planning_time" default="5.0" description="Planning time budget per request (s)."/>
+  <arg name="launch_rviz" default="false"
+       description="Launch RViz for each per-pipeline run (off by default for an unattended comparison)."/>
+
+  <!-- Output: one parent folder benchmark_fanuc-driver_<timestamp> under output_dir. -->
+  <arg name="output_dir" default="$(env PWD)" description="Directory for the parent comparison run folder."/>
+  <arg name="timestamp" default="auto"
+       description="Parent folder suffix (benchmark_fanuc-driver_&lt;timestamp&gt;). 'auto' -> orchestrator uses the current date-time."/>
+
+  <executable
+    cmd="python3 $(find-pkg-share fanuc_benchmark)/test/run_pipeline_comparison.py
+         --pipelines $(var pipelines)
+         --output-dir $(var output_dir)
+         --timestamp $(var timestamp)
+         --robot-model $(var robot_model)
+         --robot-ip $(var robot_ip)
+         --iterations $(var iterations)
+         --velocity-scaling $(var velocity_scaling)
+         --acceleration-scaling $(var acceleration_scaling)
+         --planning-time $(var planning_time)
+         --launch-rviz $(var launch_rviz)"
+    output="screen"
+    on_exit="shutdown"/>
+</launch>
