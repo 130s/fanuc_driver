@@ -1,0 +1,13 @@
+# type    : the type of the I/O to controll
+# address : 1-base index
+uint32 type
+uint32 address
+
+uint32 TYPE_DI=0
+uint32 TYPE_DO=1
+uint32 TYPE_RI=2
+uint32 TYPE_RO=3
+uint32 TYPE_FLAG=4
+---
+uint32 value
+bool success

@@ -1,0 +1,5 @@
+# num : payload number in 1-base index
+
+uint32 num
+---
+bool success

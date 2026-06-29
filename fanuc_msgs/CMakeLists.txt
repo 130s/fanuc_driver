@@ -31,6 +31,8 @@ set(msg_files
   msg/CollaborativeSpeedScaling.msg
 
   msg/ForceSensor.msg
+
+  msg/fanuc_ros2/FeedbackStatus.msg  # Proprietary msg file
 )
 set(srv_files
   srv/SetAnalogIO.srv
@@ -56,6 +58,10 @@ set(srv_files
   srv/CfgForceSensor.srv
 
   srv/SwitchControlState.srv
+
+  srv/fanuc_ros2/ReadSingleIO.srv   # Proprietary msg file
+  srv/fanuc_ros2/SetPayloadNum.srv  # Proprietary msg file
+  srv/fanuc_ros2/WriteSingleIO.srv  # Proprietary msg file
 )
 
 
