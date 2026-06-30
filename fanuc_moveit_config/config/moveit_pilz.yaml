@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2025-2026, FANUC America Corporation
+# SPDX-FileCopyrightText: 2025-2026, FANUC CORPORATION
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Consolidated, fully-namespaced MoveIt parameters for the XML frontend launch
+# (pilz.launch.xml). The Python launch builds the equivalent parameter dict at
+# runtime via MoveItConfigsBuilder from the individual raw YAMLs
+# (config/kinematics.yaml, config/joint_limits.yaml, config/moveit_controllers.yaml,
+# config/pilz_planner.yaml). The frontend (XML) launch cannot namespace a file's
+# contents, so a raw "--params-file config/kinematics.yaml" fails with
+# "Cannot have a value before ros__parameters". This file wraps that same content
+# under "/** -> ros__parameters" with the namespaces MoveIt expects, so it can be
+# passed directly. Keep the values in sync with the source YAMLs above if edited.
+/**:
+  ros__parameters:
+    # --- IK solver (mirrors config/kinematics.yaml, under robot_description_kinematics) ---
+    robot_description_kinematics:
+      manipulator:
+        kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+        kinematics_solver_search_resolution: 0.005
+        kinematics_solver_timeout: 0.005
+
+    # --- Joint & Cartesian limits (mirrors config/joint_limits.yaml, under robot_description_planning) ---
+    robot_description_planning:
+      joint_limits:
+        J1: {has_velocity_limits: true, max_velocity: 2.0943951023931953, has_acceleration_limits: true, max_acceleration: 0.4}
+        J2: {has_velocity_limits: true, max_velocity: 2.0943951023931953, has_acceleration_limits: true, max_acceleration: 0.4}
+        J3: {has_velocity_limits: true, max_velocity: 3.1415926535897931, has_acceleration_limits: true, max_acceleration: 0.4}
+        J4: {has_velocity_limits: true, max_velocity: 3.1415926535897931, has_acceleration_limits: true, max_acceleration: 1.0}
+        J5: {has_velocity_limits: true, max_velocity: 3.1415926535897931, has_acceleration_limits: true, max_acceleration: 1.0}
+        J6: {has_velocity_limits: true, max_velocity: 3.1415926535897931, has_acceleration_limits: true, max_acceleration: 1.0}
+      # Required by Pilz LIN/CIRC; PTP uses the joint limits above.
+      cartesian_limits:
+        max_trans_vel: 1.0
+        max_trans_acc: 2.25
+        max_trans_dec: -5.0
+        max_rot_vel: 1.57
+
+    # --- Planning pipeline: Pilz industrial motion planner (mirrors config/pilz_planner.yaml) ---
+    planning_pipelines: ["pilz_industrial_motion_planner"]
+    default_planning_pipeline: pilz_industrial_motion_planner
+    pilz_industrial_motion_planner:
+      planning_plugins:
+        - pilz_industrial_motion_planner/CommandPlanner
+      request_adapters:
+        - default_planning_request_adapters/ResolveConstraintFrames
+        - default_planning_request_adapters/ValidateWorkspaceBounds
+        - default_planning_request_adapters/CheckStartStateBounds
+        - default_planning_request_adapters/CheckStartStateCollision
+      response_adapters:
+        - default_planning_response_adapters/ValidateSolution
+        - default_planning_response_adapters/DisplayMotionPath
+      default_planner_config: PTP
+
+    # --- Trajectory execution through ros2_control (mirrors config/moveit_controllers.yaml) ---
+    moveit_controller_manager: moveit_ros_control_interface/Ros2ControlManager
+    trajectory_execution:
+      allowed_execution_duration_scaling: 1.0
+      allowed_goal_duration_margin: 1000.0
+      allowed_start_tolerance: 0.01
+    controller_manager_timeout: 10.0
+    octomap:
+      enabled: false
+
+    # --- Pilz sequence capabilities + planning-scene publishing ---
+    capabilities: >-
+      pilz_industrial_motion_planner/MoveGroupSequenceAction
+      pilz_industrial_motion_planner/MoveGroupSequenceService
+    publish_robot_description: true
+    publish_robot_description_semantic: true
+    publish_planning_scene: true
+    publish_geometry_updates: true
+    publish_state_updates: true
+    publish_transforms_updates: true
