@@ -18,7 +18,15 @@ SPDX-License-Identifier: Apache-2.0
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>moveit_ros_control_interface</depend>
+  <depend>moveit_simple_controller_manager</depend>
+  <depend>pilz_industrial_motion_planner</depend>
   <depend>pluginlib</depend>
+  <!-- Runtime controllers used by this config: fanuc_controllers/ScaledJointTrajectoryController
+       is spawned as arm_controller and referenced by fanuc_controllers_moveit_trajectory_plugin.xml.
+       Declared so building up to fanuc_moveit_config also builds fanuc_controllers. -->
+  <exec_depend>fanuc_controllers</exec_depend>
+  <exec_depend>fanuc_crx_description</exec_depend>
+  <exec_depend>fanuc_hardware_interface</exec_depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
@@ -27,9 +35,9 @@ SPDX-License-Identifier: Apache-2.0
   <exec_depend>moveit_ros_move_group</exec_depend>
   <exec_depend>moveit_ros_visualization</exec_depend>
   <exec_depend>moveit_servo</exec_depend>
-  <exec_depend>moveit_simple_controller_manager</exec_depend>
   <exec_depend>rviz2</exec_depend>
-  <exec_depend>fanuc_crx_description</exec_depend>
+  <exec_depend>rviz_common</exec_depend>
+  <exec_depend>rviz_default_plugins</exec_depend>
   <exec_depend>urdf</exec_depend>
   <exec_depend>xacro</exec_depend>
 

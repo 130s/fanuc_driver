@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+SPDX-FileCopyrightText: 2025-2026, FANUC America Corporation
+SPDX-FileCopyrightText: 2025-2026, FANUC CORPORATION
+SPDX-License-Identifier: Apache-2.0
+
+MoveIt + Pilz industrial motion planner bring-up, frontend (XML) launch.
+
+Equivalent to fanuc_moveit.launch.py but in XML. The MoveIt parameters are
+loaded from config/moveit_pilz.yaml, which is the namespaced/wrapped form of the
+individual config/*.yaml files (see that file's header) — the frontend launch
+cannot namespace a raw params file itself.
+
+Examples:
+  # ROBOGUIDE / real robot
+  ros2 launch fanuc_moveit_config pilz.launch.xml robot_ip:=192.168.1.103
+  # Offline, mock hardware (no robot needed)
+  ros2 launch fanuc_moveit_config pilz.launch.xml use_mock:=true
+-->
+<launch>
+  <let name="_share" value="$(find-pkg-share fanuc_moveit_config)" />
+  <let name="_hw_share" value="$(find-pkg-share fanuc_hardware_interface)" />
+
+  <arg name="robot_model" default="crx30ia"
+       description="FANUC CRX model; selects URDF xacro and SRDF." />
+  <arg name="robot_ip" default="192.168.1.100"
+       description="Robot/ROBOGUIDE controller IP (ignored when use_mock:=true)." />
+  <arg name="use_mock" default="false"
+       description="Use mock hardware instead of connecting to the robot via RMI." />
+  <arg name="rviz_conf_path" default="$(var _share)/rviz/view_robot.rviz"
+       description="RViz configuration file full path." />
+
+  <!-- robot_description (URDF) and robot_description_semantic (SRDF) as strings -->
+  <let name="robot_description"
+       value="$(command 'xacro $(var _hw_share)/robot/$(var robot_model).urdf.xacro robot_ip:=$(var robot_ip) use_mock:=$(var use_mock)')" />
+  <let name="robot_description_semantic"
+       value="$(command 'cat $(var _share)/srdf/$(var robot_model).srdf')" />
+
+  <node pkg="tf2_ros" exec="static_transform_publisher" name="static_transform_publisher" output="log"
+        args="--frame-id world --child-frame-id base_link" />
+
+  <node pkg="robot_state_publisher" exec="robot_state_publisher" name="robot_state_publisher" output="both">
+    <param name="robot_description" type="str" value="$(var robot_description)" />
+  </node>
+
+  <!-- MoveIt move_group with the Pilz pipeline -->
+  <node pkg="moveit_ros_move_group" exec="move_group" output="screen">
+    <param name="robot_description" type="str" value="$(var robot_description)" />
+    <param name="robot_description_semantic" type="str" value="$(var robot_description_semantic)" />
+    <param from="$(var _share)/config/moveit_pilz.yaml" />
+  </node>
+
+  <!-- ros2_control: same node for mock and physical; the URDF (use_mock) selects the hardware plugin -->
+  <node pkg="controller_manager" exec="ros2_control_node" output="both">
+    <param name="robot_description" type="str" value="$(var robot_description)" />
+    <param from="$(var _share)/config/ros2_controllers_pilz.yaml" />
+  </node>
+
+  <!-- Spawn the controllers that this driver actually defines -->
+  <node pkg="controller_manager" exec="spawner" name="joint_state_broadcaster_spawner"
+        args="joint_state_broadcaster -c /controller_manager" output="screen" />
+  <node pkg="controller_manager" exec="spawner" name="arm_controller_spawner"
+        args="joint_trajectory_controller -c /controller_manager" output="screen" />
+  <node pkg="controller_manager" exec="spawner" name="fanuc_gpio_controller_spawner"
+        args="fanuc_gpio_controller -c /controller_manager" output="screen" />
+  <node pkg="controller_manager" exec="spawner" name="fanuc_force_sensor_broadcaster_spawner"
+        args="fanuc_force_sensor_broadcaster -c /controller_manager" output="screen" />
+  <node pkg="controller_manager" exec="spawner" name="force_torque_sensor_broadcaster_spawner"
+        args="force_torque_sensor_broadcaster -c /controller_manager" output="screen" />
+
+  <node pkg="rviz2" exec="rviz2" name="rviz2" output="log" args="-d $(var rviz_conf_path)">
+    <param name="robot_description" type="str" value="$(var robot_description)" />
+    <param name="robot_description_semantic" type="str" value="$(var robot_description_semantic)" />
+    <param from="$(var _share)/config/moveit_pilz.yaml" />
+  </node>
+</launch>

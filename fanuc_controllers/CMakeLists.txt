@@ -19,7 +19,9 @@ endif ()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_ros REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(angles REQUIRED)
 find_package(controller_interface REQUIRED)
 find_package(controller_manager_msgs REQUIRED)
 find_package(fanuc_hardware_interface REQUIRED)

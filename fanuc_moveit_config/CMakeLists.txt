@@ -10,11 +10,13 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(ament_cmake REQUIRED)
 find_package(moveit_ros_control_interface REQUIRED)
+find_package(moveit_simple_controller_manager REQUIRED)
 find_package(pluginlib REQUIRED)
 
 add_library(fanuc_controllers_moveit_trajectory_plugin SHARED
     src/fanuc_controllers_moveit_trajectory_plugin.cpp
 )
+
 target_link_libraries(fanuc_controllers_moveit_trajectory_plugin PRIVATE
     moveit_ros_control_interface::moveit_ros_control_interface_trajectory_plugin)
 
