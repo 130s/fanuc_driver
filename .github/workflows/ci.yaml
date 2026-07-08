@@ -35,8 +35,19 @@ jobs:
       CCACHE_DIR: "${{ github.workspace }}/.ccache" # directory for ccache (and how we enable ccache in industrial_ci)
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      # Import fanuc_libs' third-party sources with vcs2l (the maintained
+      # successor to vcstool) instead of git submodules. Doing this before the
+      # build means no `git clone` is triggered during colcon build.
+      # We import the single top-level dep.repos, but filter out
+      # fanuc_description: it is not needed to compile the driver and carries
+      # large git-lfs meshes. See dep.repos and fanuc_libs/CMakeLists.txt.
+      - name: Import third-party dependencies (vcs2l)
+        shell: bash
+        run: |
+          python3 -m pip install --user --break-system-packages vcs2l
+          # PyYAML ships with vcs2l (installed above); drop fanuc_description.
+          python3 -c "import yaml,sys; d=yaml.safe_load(open('dep.repos')); d['repositories'].pop('fanuc_description', None); yaml.safe_dump(d, sys.stdout)" | "$HOME/.local/bin/vcs" import .
 
       - uses: actions/cache@v4 # fetch/store the directory used by ccache before/after the ci run
         with:

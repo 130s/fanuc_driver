@@ -13,46 +13,65 @@ if (ament_cmake_FOUND)
     ament_package()
 endif()
 
-# Build the sockpp library
+# ---------------------------------------------------------------------------
+# Third-party dependencies.
+#
+# These sources are NOT vendored as git submodules. They are declared in the
+# top-level `dep.repos` file and fetched with vcs2l *before* the build:
+#
+#     vcs import . < dep.repos      # run from the fanuc_driver repo root
+#
+# CMake then consumes the already-present sources in place through
+# FetchContent's SOURCE_DIR, so no `git clone` happens during `colcon build`.
+# ---------------------------------------------------------------------------
 include(FetchContent)
-FetchContent_Declare(
-    sockpp
-    GIT_REPOSITORY ${CMAKE_SOURCE_DIR}/dependencies/sockpp
-    GIT_TAG afdeacba9448c7a77194eed6ab8e1c0b1653c79a
-    PATCH_COMMAND bash ${CMAKE_SOURCE_DIR}/dependencies/apply_patch.bash ${CMAKE_SOURCE_DIR}/dependencies/sockpp.patch
-)
+
+set(FANUC_DEPS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependencies)
+
+# Fail early, with an actionable message, if the sources were not imported.
+foreach(_dep sockpp readerwriterqueue yaml-cpp reflect-cpp)
+  if (NOT EXISTS ${FANUC_DEPS_DIR}/${_dep}/CMakeLists.txt)
+    message(FATAL_ERROR
+      "Third-party dependency '${_dep}' was not found under\n"
+      "  ${FANUC_DEPS_DIR}/${_dep}\n"
+      "Import the sources first by running, from the fanuc_driver repo root:\n"
+      "  vcs import . < dep.repos")
+  endif ()
+endforeach()
+
+# Applies a dependency's patch idempotently; a non-zero exit fails the
+# configure step so a bad patch surfaces immediately instead of as a
+# confusing downstream compile error.
+function(fanuc_apply_dependency_patch dep patch)
+  execute_process(
+      COMMAND bash ${FANUC_DEPS_DIR}/apply_patch.bash ${FANUC_DEPS_DIR}/${patch}
+      WORKING_DIRECTORY ${FANUC_DEPS_DIR}/${dep}
+      COMMAND_ERROR_IS_FATAL ANY)
+endfunction()
+
+# Build the sockpp library
+fanuc_apply_dependency_patch(sockpp sockpp.patch)
+FetchContent_Declare(sockpp SOURCE_DIR ${FANUC_DEPS_DIR}/sockpp)
 set(SOCKPP_BUILD_SHARED OFF CACHE BOOL "Build sockpp as a shared library")
 set(SOCKPP_BUILD_STATIC ON CACHE BOOL "Build sockpp as a static library")
 FetchContent_MakeAvailable(sockpp)
 set_target_properties(sockpp-static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Create readerwriterqueue target
-FetchContent_Declare(
-    readerwriterqueue
-    GIT_REPOSITORY ${CMAKE_SOURCE_DIR}/dependencies/readerwriterqueue
-    GIT_TAG 211616e0554f93152ab3108b8d93fbc23174a9d9
-    PATCH_COMMAND bash ${CMAKE_SOURCE_DIR}/dependencies/apply_patch.bash ${CMAKE_SOURCE_DIR}/dependencies/readerwriterqueue.patch
-)
+fanuc_apply_dependency_patch(readerwriterqueue readerwriterqueue.patch)
+FetchContent_Declare(readerwriterqueue SOURCE_DIR ${FANUC_DEPS_DIR}/readerwriterqueue)
 FetchContent_MakeAvailable(readerwriterqueue)
 
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY ${CMAKE_SOURCE_DIR}/dependencies/yaml-cpp
-  GIT_TAG 2f86d13775d119edbb69af52e5f566fd65c6953b
-)
+FetchContent_Declare(yaml-cpp SOURCE_DIR ${FANUC_DEPS_DIR}/yaml-cpp)
 FetchContent_MakeAvailable(yaml-cpp)
 set(YAML_BUILD_SHARED_LIBS OFF CACHE BOOL "Build yaml-cpp shared library")
 set(YAML_CPP_INSTALL OFF CACHE BOOL "Enable generation of yaml-cpp install targets")
 
 # Build the reflectcpp library
-FetchContent_Declare(
-    reflect-cpp
-    GIT_REPOSITORY ${CMAKE_SOURCE_DIR}/dependencies/reflect-cpp
-    GIT_TAG 2a0fdeabe35bdab0e07e05d4f869ca88bd6d2b8c
-    PATCH_COMMAND bash ${CMAKE_SOURCE_DIR}/dependencies/apply_patch.bash ${CMAKE_SOURCE_DIR}/dependencies/reflectcpp.patch
-)
+fanuc_apply_dependency_patch(reflect-cpp reflectcpp.patch)
 set(REFLECTCPP_BUILD_SHARED OFF CACHE BOOL "Build reflectcpp as a shared library")
 set(REFLECTCPP_YAML ON CACHE BOOL "Enable YAML support")
+FetchContent_Declare(reflect-cpp SOURCE_DIR ${FANUC_DEPS_DIR}/reflect-cpp)
 FetchContent_MakeAvailable(reflect-cpp)
 set_target_properties(reflectcpp PROPERTIES CXX_STANDARD 20)
 set_target_properties(reflectcpp PROPERTIES POSITION_INDEPENDENT_CODE ON)
