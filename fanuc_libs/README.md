@@ -16,6 +16,22 @@ The packet structures are defined in the header file:
   - sockpp
   - gtest
 
+### Third-party sources
+
+The third-party libraries built by this package (`sockpp`, `readerwriterqueue`,
+`yaml-cpp`, `reflect-cpp`) are no longer vendored as git submodules. They are
+declared in the top-level [`dep.repos`](../dep.repos) file and must be imported
+with `vcs2l` (the maintained successor to vcstool; `apt install python3-vcs2l`)
+*before* building, so no cloning happens during the build:
+
+```bash
+# from the root of the fanuc_driver repository
+vcs import . < dep.repos
+```
+
+When built inside the wider ROS 2 workspace this is handled automatically by the
+devcontainer setup.
+
 ## Basic Usage
 
 ### Add to your CMake project

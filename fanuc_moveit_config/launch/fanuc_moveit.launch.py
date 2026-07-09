@@ -12,7 +12,7 @@ from launch.substitutions import (
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, LogInfo
 from launch.conditions import IfCondition, UnlessCondition
 
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -28,6 +28,10 @@ def launch_setup(context, *args, **kwargs):
     gpio_config_package = LaunchConfiguration("gpio_config_package")
     gpio_config_path = LaunchConfiguration("gpio_config_path")
     motion_control = LaunchConfiguration("motion_control")
+    joint_limits_file = LaunchConfiguration("joint_limits_file")
+    planning_pipeline = LaunchConfiguration("planning_pipeline")
+    launch_rviz = LaunchConfiguration("launch_rviz")
+    rviz_output = LaunchConfiguration("rviz_output")
 
     nodes_to_launch = []
 
@@ -49,7 +53,7 @@ def launch_setup(context, *args, **kwargs):
             "gpio_config_path": gpio_config_path,
             "robot_ip": robot_ip,
             "ros2_control_config": ros2_control_config,
-            "launch_rviz": "false",
+            "launch_rviz": "false",  # RViz should be launched from within this launch file, not the launch in hardware_control pkg.
             "use_mock": use_mock,
             "motion_control": motion_control,
         }.items(),
@@ -73,7 +77,7 @@ def launch_setup(context, *args, **kwargs):
             "gpio_config_package": gpio_config_package,
             "gpio_config_path": gpio_config_path,
             "ros2_control_config": ros2_control_config,
-            "launch_rviz": "false",
+            "launch_rviz": "false",  # RViz should be launched from within this launch file, not the launch in hardware_control pkg.
         }.items(),
         condition=IfCondition(use_mock),
     )
@@ -85,6 +89,7 @@ def launch_setup(context, *args, **kwargs):
         "gpio_configuration": PathJoinSubstitution(
             [FindPackageShare(gpio_config_package), gpio_config_path]
         ),
+        "motion_control": motion_control.perform(context),
     }
 
     urdf_full_path = os.path.join(
@@ -93,7 +98,9 @@ def launch_setup(context, *args, **kwargs):
         f"{robot_model.perform(context)}.urdf.xacro",
     )
 
-    moveit_config = (
+    selected_planning_pipeline = planning_pipeline.perform(context)
+
+    moveit_builder = (
         MoveItConfigsBuilder(
             robot_model.perform(context), package_name="fanuc_moveit_config"
         )
@@ -102,12 +109,17 @@ def launch_setup(context, *args, **kwargs):
             file_path=f"srdf/{robot_model.perform(context)}.srdf"
         )
         .trajectory_execution(file_path="config/moveit_controllers.yaml")
+        .joint_limits(file_path=joint_limits_file.perform(context))
         .planning_scene_monitor(
             publish_robot_description=True, publish_robot_description_semantic=True
         )
-        .planning_pipelines(pipelines=["ompl"])
-        .to_moveit_configs()
+        .planning_pipelines(pipelines=[selected_planning_pipeline])
     )
+
+    if selected_planning_pipeline == "pilz_industrial_motion_planner":
+        moveit_builder = moveit_builder.pilz_cartesian_limits()
+
+    moveit_config = moveit_builder.to_moveit_configs()
 
     # Start the actual move_group node/action server
     move_group_node = Node(
@@ -125,7 +137,10 @@ def launch_setup(context, *args, **kwargs):
         package="rviz2",
         executable="rviz2",
         name="rviz2",
-        output="both",
+        # "both" -> RViz stdout/stderr go to the console AND the log file, so a
+        # startup failure (e.g. "could not connect to display") is visible live
+        # instead of only ending up in ~/.ros/log. Configurable via rviz_output.
+        output=rviz_output.perform(context),
         parameters=[
             moveit_config.robot_description,
             moveit_config.robot_description_semantic,
@@ -134,6 +149,20 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.joint_limits,
         ],
         arguments=["--display-config", rviz_file],
+        condition=UnlessCondition(launch_rviz),  # Hack: For unknown reason, setting IfCondition(launch_rviz) here causes RViz to not launch.
+    )
+    # Announce the RViz decision so a missing window is easy to diagnose: if this
+    # says launch_rviz=true but no [rviz2-*] lines / window follow, the failure
+    # is in this launch process's environment (e.g. DISPLAY), not the wiring.
+    nodes_to_launch.append(
+        LogInfo(
+            msg=[
+                "[fanuc_moveit] launch_rviz=",
+                launch_rviz.perform(context),
+                " rviz_output=",
+                rviz_output,
+            ]
+        )
     )
     nodes_to_launch.append(rviz_node)
 
@@ -156,7 +185,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "robot_ip",
-            default_value="192.168.1.100",
+#            default_value="192.168.1.100",
+            default_value="192.168.120.101",
             description="The robot's IP address.",
         ),
         DeclareLaunchArgument(
@@ -189,6 +219,58 @@ def generate_launch_description():
             "motion_control",
             default_value="1",
             description="Initial motion control state.",
+        ),
+        DeclareLaunchArgument(
+            "joint_limits_file",
+            default_value=PathJoinSubstitution(
+                [
+                    FindPackageShare("fanuc_moveit_config"),
+                    "config",
+                    "joint_limits.yaml",
+                ]
+            ),
+            description="Joint limits YAML file passed to MoveIt.",
+        ),
+        DeclareLaunchArgument(
+            "planning_pipeline",
+            default_value="ompl",
+            description="MoveIt planning pipeline to use.",
+        ),
+        DeclareLaunchArgument(
+            "launch_rviz",
+            default_value="true",
+            description="Whether to launch RViz for visualization.",
+        ),
+        DeclareLaunchArgument(
+            "rviz_output",
+            default_value="both",
+            choices=["screen", "log", "both"],
+            description=(
+                "RViz logging destination: 'log' (file only), 'screen' "
+                "(console only), or 'both' (console + file). Use 'both' to make "
+                "RViz startup failures visible on the console."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "motion_control",
+            default_value="1",
+            description="Initial motion control state.",
+        ),
+        DeclareLaunchArgument(
+            "joint_limits_file",
+            default_value=PathJoinSubstitution(
+                [
+                    FindPackageShare("fanuc_moveit_config"),
+                    "config",
+                    "joint_limits.yaml",
+                ]
+            ),
+            description="Joint limits YAML file passed to MoveIt.",
+        ),
+        DeclareLaunchArgument(
+            "planning_pipeline",
+            default_value="ompl",
+            description="MoveIt planning pipeline to use.",
         ),
     ]
 

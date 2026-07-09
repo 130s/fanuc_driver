@@ -1,0 +1,71 @@
+{
+  "name": "fanuc_driver_devcontainer",
+  "image": "os:jazzy-ros-core",
+  //"image": "d130s/ros:jazzy-ros-core_fanuc-driver",
+
+  "mounts": [
+    // This mount point assumes the following directory structure
+    // due to the fact that the fanuc_driver package requires files
+    // from a separate repository, fanuc_description, but the devcontainer settings
+    // need to be in a repository, for which fanuc_driver repository is deliberately chosen.
+    //
+    // FANUC-CORPORATION/
+    // ├─ <workspace-root> (fanuc_driver)
+    // ├─── .devcontainer/
+    // ├─── :
+    // └─ fanuc_description
+    "source=${localWorkspaceFolder}/../../FANUC-CORPORATION,target=/cws/src/FANUC-CORPORATION,type=bind",
+    "source=${localEnv:HOME}/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.Xauthority,target=/root/.Xauthority,type=bind"
+  ],
+
+  // Set the working directory to your workspace root
+  "workspaceFolder": "/cws",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-vscode.cpptools",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        // Run the Claude Code extension on the local UI host instead of
+        // inside the container, so VS Code doesn't refuse to start it.
+        "remote.extensionKind": {
+          "anthropic.claude-code": [
+            "ui"
+          ]
+        }
+      }
+    }
+  },
+
+  // Allow UDP/TCP to reach outside by using the host network
+  // Also necessary for ROS 2 Discovery (DDS) to work seamlessly
+  "runArgs": [
+    "--network=host",
+    "--ipc=host",
+    // Pass the host's DISPLAY variable
+    "-e",
+    "DISPLAY=${localEnv:DISPLAY}",
+    "--device=/dev/dri:/dev/dri",
+    // Critical for Intel/AMD GPU access
+    "--pid=host"
+    //"--gpus", "all",  // Want to utilize GPU but for now disabling due to
+    // https://github.com/kinu-garage/hut_10sqft/issues/1426#issuecomment-4266285909
+  ],
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}",
+    "XAUTHORITY": "/root/.Xauthority",
+    "LIBGL_ALWAYS_SOFTWARE": "0"
+  },
+  // Use 'remoteUser' if you want to avoid permission issues with the mounted folder
+  "remoteUser": "root",
+
+  "initializeCommand": "mkdir -p ${localEnv:HOME}/.X11-unix && chmod 1777 ${localEnv:HOME}/.X11-unix",
+  "onCreateCommand":
+      "apt update && apt install git x11-xserver-utils python3-rosdep build-essential python3-colcon-common-extensions tmux && . /opt/ros/jazzy/setup.sh && rosdep init; rosdep update && rosdep install --from-paths src --ignore-src -y",
+  "postCreateCommand":
+      ". /opt/ros/jazzy/setup.sh && colcon build --symlink-install --cmake-args -DBUILD_EXAMPLES=OFF && . ./install/setup.sh"
+}

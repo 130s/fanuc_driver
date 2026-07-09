@@ -1,3 +1,17 @@
+# SPDX-FileCopyrightText: 2025-2026, FANUC America Corporation
+# SPDX-FileCopyrightText: 2025-2026, FANUC CORPORATION
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Resolved (substitution-free) copy of
+# fanuc_hardware_interface/config/ros2_controllers.yaml for the XML frontend
+# launch (pilz.launch.xml). The original uses launch substitutions ($(var prefix),
+# $(var gpio_config_package), $(var gpio_config_path)) that the Python launch
+# expands via ParameterFile(allow_substs=True); the frontend launch's
+# "<param from=...>" loads files raw and cannot expand them, so unresolved
+# "$(var prefix)J1" joint names crash ros2_control_node. Defaults used here match
+# the Python launch defaults: prefix="" and the example GPIO config. If you set a
+# non-empty robot prefix or a different GPIO config, update this file accordingly.
 /**:
   ros__parameters:
     update_rate: 200 # Hz
@@ -16,18 +30,18 @@
 
 /**/fanuc_gpio_controller:
   ros__parameters:
-    gpio_config_file_package: $(var gpio_config_package)
-    gpio_config_file_path: $(var gpio_config_path)
+    gpio_config_file_package: fanuc_hardware_interface
+    gpio_config_file_path: config/example_gpio_config.yaml
 
 /**/joint_trajectory_controller:
   ros__parameters:
     joints:
-      - "$(var prefix)J1"
-      - "$(var prefix)J2"
-      - "$(var prefix)J3"
-      - "$(var prefix)J4"
-      - "$(var prefix)J5"
-      - "$(var prefix)J6"
+      - "J1"
+      - "J2"
+      - "J3"
+      - "J4"
+      - "J5"
+      - "J6"
     command_interfaces:
       - position
     state_interfaces:
@@ -39,37 +53,37 @@
     constraints:
       stopped_velocity_tolerance: 0.0
       goal_time: 0.0
-      $(var prefix)J1:
+      J1:
         goal: 0.05
         trajectory: 0.25
-      $(var prefix)J2:
+      J2:
         goal: 0.05
         trajectory: 0.25
-      $(var prefix)J3:
+      J3:
         goal: 0.05
         trajectory: 0.25
-      $(var prefix)J4:
+      J4:
         goal: 0.05
         trajectory: 0.25
-      $(var prefix)J5:
+      J5:
         goal: 0.05
         trajectory: 0.25
-      $(var prefix)J6:
+      J6:
         goal: 0.05
         trajectory: 0.25
 
 /**/forward_position_controller:
   ros__parameters:
     joints:
-      - "$(var prefix)J1"
-      - "$(var prefix)J2"
-      - "$(var prefix)J3"
-      - "$(var prefix)J4"
-      - "$(var prefix)J5"
-      - "$(var prefix)J6"
+      - "J1"
+      - "J2"
+      - "J3"
+      - "J4"
+      - "J5"
+      - "J6"
     interface_name: "position"
 
 /**/force_torque_sensor_broadcaster:
   ros__parameters:
     sensor_name: "ft_sensor"
-    frame_id: "$(var prefix)fanuc_flange"
+    frame_id: "fanuc_flange"

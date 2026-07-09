@@ -1,0 +1,148 @@
+<?xml version="1.0"?>
+<!--
+  SPDX-FileCopyrightText: 2026, FANUC America Corporation
+  SPDX-FileCopyrightText: 2026, FANUC CORPORATION
+  SPDX-License-Identifier: Apache-2.0
+
+  Entry point for the FANUC motion-planner benchmark.
+
+  This file is the orchestration entry point; the two pieces XML cannot express
+  are delegated to small .py helpers:
+    1. brings up the selected planner's move_group + FANUC driver + RViz,
+    2. includes benchmark_recording.launch.py, which records the rosbag and, when
+       the runner finishes, finalizes the bag, runs analyze_benchmark.py (results
+       to the terminal) and shuts the launch down (needs event handlers),
+    3. starts the motion-task runner via motion_task_test.launch.py, which builds
+       the MoveIt configuration.
+
+  Select the planner with the `planner` argument. Because OMPL/MTC and Pilz need
+  different move_group pipelines and joint-limit files, set those together:
+
+    OMPL (default):
+      ros2 launch fanuc_benchmark benchmark.launch.xml robot_ip:=192.168.120.101
+
+    Pilz LIN (joint_limits_file is the pilz_joint_limits.yaml from
+    fanuc_moveit_config; give its absolute path):
+      ros2 launch fanuc_benchmark benchmark.launch.xml
+        planner:=pilz_lin
+        planning_pipeline:=pilz_industrial_motion_planner
+        joint_limits_file:=/path/to/fanuc_moveit_config/config/pilz_joint_limits.yaml
+
+    MoveIt Task Constructor:
+      ros2 launch fanuc_benchmark benchmark.launch.xml planner:=mtc
+
+  If you already have move_group running (e.g. via fanuc_moveit.launch.py), pass
+  launch_moveit:=false to only run the motion-task node + recording.
+-->
+<launch>
+  <!-- Robot / hardware -->
+  <arg name="robot_model" default="crx30ia" description="FANUC CRX model."/>
+  <arg name="robot_ip" default="192.168.120.101" description="The robot's IP address."/>
+
+  <!-- Planner selection -->
+  <arg name="planner" default="ompl" description="Benchmark back-end: ompl | pilz_lin | mtc."/>
+  <arg name="planning_pipeline" default="ompl"
+       description="move_group pipeline. Use pilz_industrial_motion_planner for planner:=pilz_lin."/>
+  <arg name="joint_limits_file"
+       default="$(find-pkg-share fanuc_moveit_config)/config/joint_limits.yaml"
+       description="Joint limits YAML. Use config/pilz_joint_limits.yaml for planner:=pilz_lin."/>
+  <arg name="planner_id" default="" description="Optional planner id override (Pilz defaults to LIN)."/>
+  <arg name="group" default="manipulator" description="Planning group."/>
+
+  <!-- MTC-specific -->
+  <arg name="mtc_solver" default="pipeline" description="MTC solver: pipeline | interpolation."/>
+  <arg name="mtc_pipeline" default="ompl" description="Underlying pipeline for the MTC pipeline solver."/>
+
+  <!-- Run options -->
+  <arg name="iterations" default="3" description="Number of forward+reverse MOTR repetitions."/>
+  <arg name="velocity_scaling" default="0.1" description="Max velocity scaling factor (0-1)."/>
+  <arg name="acceleration_scaling" default="0.1" description="Max acceleration scaling factor (0-1)."/>
+  <arg name="planning_time" default="5.0" description="Planning time budget per request (s)."/>
+  <arg name="planning_attempts" default="10" description="Planning attempts per request."/>
+  <arg name="state_wait_timeout" default="30.0"
+       description="Abort if the current robot state is not obtained within this many seconds."/>
+  <arg name="motr_max_retries" default="3"
+       description="Retry an STMO-aborted MOTR this many times after motion_possible is restored. 0 disables retry."/>
+  <arg name="motr_retry_motion_timeout" default="15.0"
+       description="Per retry, wait at most this many seconds for motion_possible to be restored before giving up."/>
+  <arg name="motr_retry_stable_s" default="1.0"
+       description="motion_possible must stay true continuously for this many seconds before a retry is attempted."/>
+  <arg name="poses_file"
+       default="$(find-pkg-share fanuc_benchmark)/test/benchmark_poses.yaml"
+       description="Waypoint definition file."/>
+
+  <!-- Orchestration -->
+  <arg name="launch_moveit" default="true" description="Also bring up move_group + the FANUC driver."/>
+  <arg name="launch_rviz" default="true" description="Launch RViz with move_group and show RViz startup messages on the terminal."/>
+  <arg name="rviz_output" default="screen"
+       description="RViz logging destination: log (file only), screen (console only), or both. Defaults to screen so RViz startup issues are visible immediately."/>
+  <arg name="record_bag" default="true" description="Record a rosbag of the run."/>
+  <arg name="analyze" default="true"
+       description="After the run, automatically run analyze_benchmark.py and print the per-MOTR results/stats to the terminal."/>
+  <arg name="stmo_recovery" default="true" description="Watch for STMO inactive warnings and issue the recovery service call."/>
+  <arg name="output_dir" default="$(env PWD)" description="Directory for the recorded bag."/>
+  <!-- The `command` substitution runs via shlex (no shell) and does NOT strip the
+       trailing newline date prints, so wrap it in `bash -c` so the pipe runs and
+       `tr -d` removes the newline. Without this the bag dir is "benchmark_<ts>\n". -->
+  <arg name="timestamp" default='$(command "bash -c \"date +%Y%m%d_%H%M%S | tr -d &apos;\\n&apos;\"")'
+       description="Evaluated once; used as the bag name suffix (benchmark_%TIMESTAMP%)."/>
+
+  <!-- 1. Bring up the selected planner's move_group + FANUC driver. -->
+  <include file="$(find-pkg-share fanuc_moveit_config)/launch/fanuc_moveit.launch.py" if="$(var launch_moveit)">
+    <arg name="robot_model" value="$(var robot_model)"/>
+    <arg name="robot_ip" value="$(var robot_ip)"/>
+    <arg name="planning_pipeline" value="$(var planning_pipeline)"/>
+    <arg name="joint_limits_file" value="$(var joint_limits_file)"/>
+    <arg name="launch_rviz" value="$(var launch_rviz)"/>
+    <arg name="rviz_output" value="$(var rviz_output)"/>
+  </include>
+
+  <!-- 2. Watch the controller output for STMO inactive warnings and trigger the
+          recovery service call. If the workaround fails to restore motion_possible,
+          the watcher exits non-zero and on_exit="shutdown" tears down the whole
+          benchmark (move_group, driver, rosbag and the motion-task runner). -->
+  <executable
+    cmd="python3 $(find-pkg-share fanuc_benchmark)/test/stmo_recovery.py"
+    output="screen"
+    on_exit="shutdown"
+    if="$(var stmo_recovery)"/>
+
+  <!-- 3. Bag operation + end-of-run orchestration (the part XML cannot express,
+          because it needs event handlers): records the benchmark topics, and when
+          the runner exits it finalizes the bag, runs analyze_benchmark.py (results
+          to the terminal) and shuts the whole launch down. Always included so it
+          owns clean termination; it records/analyzes only if record_bag/analyze. -->
+  <include file="$(find-pkg-share fanuc_benchmark)/test/benchmark_recording.launch.py">
+    <arg name="output_dir" value="$(var output_dir)"/>
+    <arg name="timestamp" value="$(var timestamp)"/>
+    <arg name="record_bag" value="$(var record_bag)"/>
+    <arg name="analyze" value="$(var analyze)"/>
+  </include>
+
+  <!-- 4. Motion-task runner (built with the full MoveIt config via the .py helper).
+          Its process exit is what drives the end-of-run sequence in (3): bag
+          finalize -> analyze -> shutdown. `on_exit` is NOT valid on <include>, so
+          that teardown is registered as an OnProcessExit handler in
+          benchmark_recording.launch.py, not here. -->
+  <include file="$(find-pkg-share fanuc_benchmark)/test/motion_task_test.launch.py">
+    <arg name="robot_model" value="$(var robot_model)"/>
+    <arg name="robot_ip" value="$(var robot_ip)"/>
+    <arg name="planner" value="$(var planner)"/>
+    <arg name="group" value="$(var group)"/>
+    <arg name="planner_id" value="$(var planner_id)"/>
+    <arg name="planning_pipeline" value="$(var planning_pipeline)"/>
+    <arg name="joint_limits_file" value="$(var joint_limits_file)"/>
+    <arg name="iterations" value="$(var iterations)"/>
+    <arg name="velocity_scaling" value="$(var velocity_scaling)"/>
+    <arg name="acceleration_scaling" value="$(var acceleration_scaling)"/>
+    <arg name="planning_time" value="$(var planning_time)"/>
+    <arg name="planning_attempts" value="$(var planning_attempts)"/>
+    <arg name="state_wait_timeout" value="$(var state_wait_timeout)"/>
+    <arg name="mtc_solver" value="$(var mtc_solver)"/>
+    <arg name="mtc_pipeline" value="$(var mtc_pipeline)"/>
+    <arg name="motr_max_retries" value="$(var motr_max_retries)"/>
+    <arg name="motr_retry_motion_timeout" value="$(var motr_retry_motion_timeout)"/>
+    <arg name="motr_retry_stable_s" value="$(var motr_retry_stable_s)"/>
+    <arg name="poses_file" value="$(var poses_file)"/>
+  </include>
+</launch>
