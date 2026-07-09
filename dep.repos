@@ -1,0 +1,58 @@
+# SPDX-FileCopyrightText: 2025-2026 FANUC America Corporation
+# SPDX-FileCopyrightText: 2025-2026 FANUC CORPORATION
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# External sources pulled into the fanuc_driver workspace.
+#
+# This lists two kinds of sources:
+#   1. The C++ libraries built by the `fanuc_libs` package (sockpp,
+#      readerwriterqueue, yaml-cpp, reflect-cpp).
+#   2. `fanuc_description`, a sibling FANUC ROS 2 package repository the driver
+#      depends on, cloned into the fanuc_driver repo root.
+#
+# The `fanuc_libs` libraries used to be vendored as git submodules (see the
+# removed `.gitmodules`),
+# which triggered an implicit `git clone` during `colcon build` that was flaky
+# and hard to diagnose. They are now managed declaratively with vcs2l (the
+# maintained successor to vcstool; `apt install python3-vcs2l`) and imported
+# *before* the build. `fanuc_libs/CMakeLists.txt` then consumes the
+# already-present sources in place (FetchContent `SOURCE_DIR`), so no cloning
+# happens during the build.
+#
+# Import (run from the root of the fanuc_driver repository):
+#
+#     vcs import . < dep.repos
+#
+# The `version` of each `fanuc_libs` dependency is pinned to an exact commit
+# for reproducibility and must match what `fanuc_libs/CMakeLists.txt` expects.
+# `fanuc_description` is pinned to a release tag; bump it as the driver requires.
+#
+# NOTE: CI does not need fanuc_description, so .github/workflows/ci.yaml imports
+# this same file but filters out the fanuc_description entry at import time.
+#
+# NOTE: googletest is intentionally not listed here. It is only fetched when
+# BUILD_TESTING is enabled, is pulled as a source archive (not a git clone),
+# and was never a submodule.
+repositories:
+  fanuc_libs/dependencies/sockpp:
+    type: git
+    url: https://github.com/fpagliughi/sockpp.git
+    version: afdeacba9448c7a77194eed6ab8e1c0b1653c79a
+  fanuc_libs/dependencies/readerwriterqueue:
+    type: git
+    url: https://github.com/cameron314/readerwriterqueue.git
+    version: 211616e0554f93152ab3108b8d93fbc23174a9d9
+  fanuc_libs/dependencies/yaml-cpp:
+    type: git
+    url: https://github.com/jbeder/yaml-cpp.git
+    version: 2f86d13775d119edbb69af52e5f566fd65c6953b
+  fanuc_libs/dependencies/reflect-cpp:
+    type: git
+    url: https://github.com/getml/reflect-cpp.git
+    version: 2a0fdeabe35bdab0e07e05d4f869ca88bd6d2b8c
+  # Sibling FANUC ROS 2 package repo, cloned into the fanuc_driver repo root.
+  fanuc_description:
+    type: git
+    url: https://github.com/FANUC-CORPORATION/fanuc_description.git
+    version: v2.1.1

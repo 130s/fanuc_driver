@@ -4,6 +4,15 @@ install
 log
 .cache
 
+# Sources imported by vcs2l from dep.repos (see dep.repos). The patches and
+# apply_patch.bash that live alongside the fanuc_libs deps stay tracked.
+/fanuc_libs/dependencies/sockpp/
+/fanuc_libs/dependencies/readerwriterqueue/
+/fanuc_libs/dependencies/yaml-cpp/
+/fanuc_libs/dependencies/reflect-cpp/
+# Sibling FANUC package repo cloned into the repo root (see dep.repos).
+/fanuc_description/
+
 # Editor specific files
 *.swp
 .idea/
